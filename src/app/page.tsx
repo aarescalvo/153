@@ -54,13 +54,14 @@ import { DashboardFinancieroModule } from '@/components/dashboard-financiero'
 import { AutorizacionesReportesModule } from '@/components/autorizaciones-reporte'
 import { IntegracionBalanzasModule } from '@/components/integracion-balanzas'
 import { AdminSistemaModule } from '@/components/configuracion/admin-sistema'
+import { MenuEditor } from '@/components/menu-editor'
 
 // Lucide icons
 import { 
   Truck, Beef, Scale, ClipboardList, TrendingUp, Package, Tag, Scissors, 
   Warehouse, FileText, Settings, Calendar, LogOut, Lock, Users, Mail,
   Loader2, Plus, Search, Weight, RefreshCw, BoxSelect, Barcode, Printer, Monitor,
-  ChevronDown, ChevronRight, LayoutDashboard, DollarSign, Database
+  ChevronDown, ChevronRight, LayoutDashboard, DollarSign, Database, Move, Eye, EyeOff
 } from 'lucide-react'
 
 // Types
@@ -260,6 +261,12 @@ export default function FrigorificoApp() {
   const [expandedGroups, setExpandedGroups] = useState<string[]>(['CICLO I', 'Subproductos'])
   const [expandedSubGroups, setExpandedSubGroups] = useState<string[]>(['Subproductos-Consumo', 'Subproductos-Rendering'])
   
+  // Menu Editor state
+  const [showMenuEditor, setShowMenuEditor] = useState(false)
+  const [moduleOrder, setModuleOrder] = useState<string[]>([])
+  const [moduleSizes, setModuleSizes] = useState<Record<string, 'small' | 'medium' | 'large'>>({})
+  const [moduleVisible, setModuleVisible] = useState<Record<string, boolean>>({})
+  
   // Login state
   const [loginTab, setLoginTab] = useState<'usuario' | 'pin'>('usuario')
   const [usuario, setUsuario] = useState('')
@@ -301,8 +308,30 @@ export default function FrigorificoApp() {
     if (operador) {
       fetchTropas()
       fetchStats()
+      fetchPreferenciasUI()
     }
   }, [operador])
+
+  const fetchPreferenciasUI = async () => {
+    if (!operador) return
+    try {
+      const res = await fetch(`/api/preferencias-ui?operadorId=${operador.id}`)
+      const data = await res.json()
+      if (data.success && data.data) {
+        if (data.data.moduloOrden) {
+          setModuleOrder(JSON.parse(data.data.moduloOrden))
+        }
+        if (data.data.moduloTamano) {
+          setModuleSizes(JSON.parse(data.data.moduloTamano))
+        }
+        if (data.data.moduloVisible) {
+          setModuleVisible(JSON.parse(data.data.moduloVisible))
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching preferencias UI:', error)
+    }
+  }
 
   const fetchTropas = async () => {
     try {
@@ -604,10 +633,22 @@ export default function FrigorificoApp() {
 
     const renderModuleCard = (modulo: { id: Page; label: string; icon: typeof Beef; color: string; desc: string; permiso: string }) => {
       const hasAccess = operador?.permisos[modulo.permiso as keyof typeof operador.permisos] === true
+      const isVisible = moduleVisible[modulo.id] !== false // Por defecto visible
+      const size = moduleSizes[modulo.id] || 'medium'
+      
+      // Clases de tamaño
+      const sizeClasses = {
+        small: 'col-span-1',
+        medium: 'col-span-1',
+        large: 'col-span-2'
+      }
+      
+      if (!isVisible) return null
+      
       return (
         <Card 
           key={modulo.id}
-          className={`border-0 shadow-md cursor-pointer transition-all duration-200 ${hasAccess ? 'hover:shadow-lg hover:scale-105' : 'opacity-50 cursor-not-allowed'}`}
+          className={`border-0 shadow-md cursor-pointer transition-all duration-200 ${sizeClasses[size]} ${hasAccess ? 'hover:shadow-lg hover:scale-105' : 'opacity-50 cursor-not-allowed'}`}
           onClick={() => hasAccess && setCurrentPage(modulo.id)}
         >
           <CardContent className="p-4">
@@ -629,12 +670,25 @@ export default function FrigorificoApp() {
       <div className="min-h-screen bg-gradient-to-br from-stone-50 to-stone-100 p-4 md:p-6">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
-          <div className="mb-6">
-            <h1 className="text-2xl md:text-3xl font-bold text-stone-800">Sistema Frigorífico - Solemar Alimentaria</h1>
-            <p className="text-stone-500 mt-1 flex items-center gap-2">
-              <Calendar className="w-4 h-4" />
-              {new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-            </p>
+          <div className="mb-6 flex items-start justify-between">
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold text-stone-800">Sistema Frigorífico - Solemar Alimentaria</h1>
+              <p className="text-stone-500 mt-1 flex items-center gap-2">
+                <Calendar className="w-4 h-4" />
+                {new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+              </p>
+            </div>
+            {/* Botón Configurar Menús - Solo para supervisores/admins */}
+            {(operador?.rol === 'SUPERVISOR' || operador?.rol === 'ADMINISTRADOR' || operador?.permisos.puedeConfiguracion) && (
+              <Button 
+                variant="outline" 
+                onClick={() => setShowMenuEditor(true)}
+                className="flex items-center gap-2"
+              >
+                <Move className="w-4 h-4" />
+                <span className="hidden sm:inline">Configurar Menús</span>
+              </Button>
+            )}
           </div>
 
           {/* Quick Stats */}
@@ -1105,6 +1159,40 @@ export default function FrigorificoApp() {
       <main className="ml-64 flex-1 min-h-screen">
         {renderPage()}
       </main>
+
+      {/* Menu Editor Modal */}
+      {showMenuEditor && operador && (
+        <MenuEditor
+          operadorId={operador.id}
+          modules={[
+            { id: 'pesajeCamiones', label: 'Pesaje Camiones', color: 'bg-amber-500' },
+            { id: 'pesajeIndividual', label: 'Pesaje Individual', color: 'bg-emerald-600' },
+            { id: 'movimientoHacienda', label: 'Movimiento de Hacienda', color: 'bg-blue-600' },
+            { id: 'listaFaena', label: 'Lista de Faena', color: 'bg-red-600' },
+            { id: 'ingresoCajon', label: 'Ingreso a Cajón', color: 'bg-purple-600' },
+            { id: 'romaneo', label: 'Romaneo', color: 'bg-orange-500' },
+            { id: 'vbRomaneo', label: 'VB Romaneo', color: 'bg-amber-600' },
+            { id: 'expedicion', label: 'Expedición', color: 'bg-teal-600' },
+            { id: 'menudencias', label: 'Menudencias', color: 'bg-teal-600' },
+            { id: 'cueros', label: 'Cueros', color: 'bg-yellow-600' },
+            { id: 'stocksCorrales', label: 'Stocks Corrales', color: 'bg-indigo-600' },
+            { id: 'stock', label: 'Stocks Cámaras', color: 'bg-cyan-600' },
+            { id: 'planilla01', label: 'Planilla 01', color: 'bg-gray-600' },
+            { id: 'rindesTropa', label: 'Rindes por Tropa', color: 'bg-lime-600' },
+            { id: 'busquedaFiltro', label: 'Búsqueda por Filtro', color: 'bg-slate-600' },
+            { id: 'reportesSenasa', label: 'Reportes SENASA', color: 'bg-stone-600' },
+            { id: 'facturacion', label: 'Facturación', color: 'bg-slate-700' },
+            { id: 'configuracion', label: 'Configuración', color: 'bg-stone-600' },
+          ]}
+          onClose={() => setShowMenuEditor(false)}
+          onSave={(config) => {
+            setModuleOrder(config.orden)
+            setModuleSizes(config.tamanos)
+            setModuleVisible(config.visibles)
+            setShowMenuEditor(false)
+          }}
+        />
+      )}
     </div>
   )
 }

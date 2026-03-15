@@ -1,262 +1,132 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { Prisma } from '@prisma/client'
 
-// GET - Obtener preferencias de UI del operador
+// GET - Obtener preferencias de UI del usuario
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const operadorId = searchParams.get('operadorId')
-    
+
     if (!operadorId) {
-      return NextResponse.json(
-        { success: false, error: 'Operador ID requerido' },
-        { status: 400 }
-      )
+      return NextResponse.json({ success: false, error: 'ID de operador requerido' }, { status: 400 })
     }
-    
+
     let preferencias = await db.preferenciasUI.findUnique({
       where: { operadorId }
     })
-    
+
     // Si no existe, crear con valores por defecto
     if (!preferencias) {
       preferencias = await db.preferenciasUI.create({
         data: {
           operadorId,
-          moduloOrden: JSON.stringify([
-            'pesajeCamiones',
-            'pesajeIndividual', 
-            'movimientoHacienda',
-            'listaFaena',
-            'ingresoCajon',
-            'romaneo',
-            'vbRomaneo',
-            'expedicion',
-            'menudencias',
-            'cueros',
-            'stocksCorrales',
-            'stock',
-            'planilla01',
-            'rindesTropa',
-            'busquedaFiltro',
-            'facturacion',
-            'configuracion'
-          ]),
-          moduloTamano: JSON.stringify({
-            pesajeCamiones: 'large',
-            pesajeIndividual: 'medium',
-            movimientoHacienda: 'medium',
-            listaFaena: 'medium',
-            ingresoCajon: 'medium',
-            romaneo: 'medium',
-            vbRomaneo: 'small',
-            expedicion: 'medium',
-            menudencias: 'medium',
-            cueros: 'small',
-            stocksCorrales: 'medium',
-            stock: 'medium',
-            planilla01: 'medium',
-            rindesTropa: 'medium',
-            busquedaFiltro: 'medium',
-            facturacion: 'medium',
-            configuracion: 'small'
-          }),
-          moduloVisible: JSON.stringify({}),
-          moduloColor: JSON.stringify({}),
-          gruposExpandidos: JSON.stringify(['CICLO I', 'Subproductos'])
+          moduloOrden: null,
+          moduloTamano: null,
+          moduloVisible: null,
+          moduloColor: null,
+          sidebarExpandido: true,
+          gruposExpandidos: null,
+          tema: 'light',
+          tamanoFuente: 'normal',
+          densidad: 'normal'
         }
       })
     }
-    
-    // Parsear JSON fields
-    const result = {
-      ...preferencias,
-      moduloOrden: preferencias.moduloOrden ? JSON.parse(preferencias.moduloOrden) : [],
-      moduloTamano: preferencias.moduloTamano ? JSON.parse(preferencias.moduloTamano) : {},
-      moduloVisible: preferencias.moduloVisible ? JSON.parse(preferencias.moduloVisible) : {},
-      moduloColor: preferencias.moduloColor ? JSON.parse(preferencias.moduloColor) : {},
-      gruposExpandidos: preferencias.gruposExpandidos ? JSON.parse(preferencias.gruposExpandidos) : []
-    }
-    
-    return NextResponse.json({
-      success: true,
-      data: result
-    })
+
+    return NextResponse.json({ success: true, data: preferencias })
   } catch (error) {
-    console.error('Error obteniendo preferencias:', error)
-    return NextResponse.json(
-      { success: false, error: 'Error al obtener preferencias' },
-      { status: 500 }
-    )
+    console.error('Error obteniendo preferencias UI:', error)
+    return NextResponse.json({ success: false, error: 'Error al obtener preferencias' }, { status: 500 })
   }
 }
 
-// POST - Crear o actualizar preferencias
+// POST - Guardar preferencias de UI
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { 
-      operadorId, 
-      moduloOrden, 
-      moduloTamano, 
-      moduloVisible,
-      moduloColor,
-      sidebarExpandido,
-      gruposExpandidos,
-      tema,
-      tamanoFuente,
-      densidad,
-      paginaInicio
-    } = body
-    
+    const { operadorId, ...preferencias } = body
+
     if (!operadorId) {
-      return NextResponse.json(
-        { success: false, error: 'Operador ID requerido' },
-        { status: 400 }
-      )
+      return NextResponse.json({ success: false, error: 'ID de operador requerido' }, { status: 400 })
     }
+
+    // Convertir objetos a JSON strings si es necesario
+    const dataToUpdate: Record<string, unknown> = {}
     
-    const data: Prisma.PreferenciasUIUpdateInput = {}
-    
-    if (moduloOrden !== undefined) data.moduloOrden = JSON.stringify(moduloOrden)
-    if (moduloTamano !== undefined) data.moduloTamano = JSON.stringify(moduloTamano)
-    if (moduloVisible !== undefined) data.moduloVisible = JSON.stringify(moduloVisible)
-    if (moduloColor !== undefined) data.moduloColor = JSON.stringify(moduloColor)
-    if (sidebarExpandido !== undefined) data.sidebarExpandido = sidebarExpandido
-    if (gruposExpandidos !== undefined) data.gruposExpandidos = JSON.stringify(gruposExpandidos)
-    if (tema !== undefined) data.tema = tema
-    if (tamanoFuente !== undefined) data.tamanoFuente = tamanoFuente
-    if (densidad !== undefined) data.densidad = densidad
-    if (paginaInicio !== undefined) data.paginaInicio = paginaInicio
-    
-    const preferencias = await db.preferenciasUI.upsert({
+    if (preferencias.moduloOrden !== undefined) {
+      dataToUpdate.moduloOrden = typeof preferencias.moduloOrden === 'string' 
+        ? preferencias.moduloOrden 
+        : JSON.stringify(preferencias.moduloOrden)
+    }
+    if (preferencias.moduloTamano !== undefined) {
+      dataToUpdate.moduloTamano = typeof preferencias.moduloTamano === 'string'
+        ? preferencias.moduloTamano
+        : JSON.stringify(preferencias.moduloTamano)
+    }
+    if (preferencias.moduloVisible !== undefined) {
+      dataToUpdate.moduloVisible = typeof preferencias.moduloVisible === 'string'
+        ? preferencias.moduloVisible
+        : JSON.stringify(preferencias.moduloVisible)
+    }
+    if (preferencias.moduloColor !== undefined) {
+      dataToUpdate.moduloColor = typeof preferencias.moduloColor === 'string'
+        ? preferencias.moduloColor
+        : JSON.stringify(preferencias.moduloColor)
+    }
+    if (preferencias.gruposExpandidos !== undefined) {
+      dataToUpdate.gruposExpandidos = typeof preferencias.gruposExpandidos === 'string'
+        ? preferencias.gruposExpandidos
+        : JSON.stringify(preferencias.gruposExpandidos)
+    }
+    if (preferencias.sidebarExpandido !== undefined) {
+      dataToUpdate.sidebarExpandido = preferencias.sidebarExpandido
+    }
+    if (preferencias.tema !== undefined) {
+      dataToUpdate.tema = preferencias.tema
+    }
+    if (preferencias.tamanoFuente !== undefined) {
+      dataToUpdate.tamanoFuente = preferencias.tamanoFuente
+    }
+    if (preferencias.densidad !== undefined) {
+      dataToUpdate.densidad = preferencias.densidad
+    }
+    if (preferencias.paginaInicio !== undefined) {
+      dataToUpdate.paginaInicio = preferencias.paginaInicio
+    }
+
+    const preferenciasActualizadas = await db.preferenciasUI.upsert({
       where: { operadorId },
+      update: dataToUpdate,
       create: {
         operadorId,
-        moduloOrden: moduloOrden ? JSON.stringify(moduloOrden) : undefined,
-        moduloTamano: moduloTamano ? JSON.stringify(moduloTamano) : undefined,
-        moduloVisible: moduloVisible ? JSON.stringify(moduloVisible) : undefined,
-        moduloColor: moduloColor ? JSON.stringify(moduloColor) : undefined,
-        sidebarExpandido: sidebarExpandido ?? true,
-        gruposExpandidos: gruposExpandidos ? JSON.stringify(gruposExpandidos) : undefined,
-        tema: tema ?? 'light',
-        tamanoFuente: tamanoFuente ?? 'normal',
-        densidad: densidad ?? 'normal',
-        paginaInicio
-      },
-      update: data
+        ...dataToUpdate
+      }
     })
-    
-    return NextResponse.json({
-      success: true,
-      data: preferencias
-    })
+
+    return NextResponse.json({ success: true, data: preferenciasActualizadas })
   } catch (error) {
-    console.error('Error guardando preferencias:', error)
-    return NextResponse.json(
-      { success: false, error: 'Error al guardar preferencias' },
-      { status: 500 }
-    )
+    console.error('Error guardando preferencias UI:', error)
+    return NextResponse.json({ success: false, error: 'Error al guardar preferencias' }, { status: 500 })
   }
 }
 
-// PUT - Actualizar solo el orden de módulos (drag & drop)
-export async function PUT(request: NextRequest) {
+// DELETE - Resetear preferencias a valores por defecto
+export async function DELETE(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { operadorId, moduloOrden } = body
-    
-    if (!operadorId || !moduloOrden) {
-      return NextResponse.json(
-        { success: false, error: 'Operador ID y moduloOrden requeridos' },
-        { status: 400 }
-      )
-    }
-    
-    const preferencias = await db.preferenciasUI.upsert({
-      where: { operadorId },
-      create: {
-        operadorId,
-        moduloOrden: JSON.stringify(moduloOrden)
-      },
-      update: {
-        moduloOrden: JSON.stringify(moduloOrden)
-      }
-    })
-    
-    return NextResponse.json({
-      success: true,
-      data: preferencias
-    })
-  } catch (error) {
-    console.error('Error actualizando orden:', error)
-    return NextResponse.json(
-      { success: false, error: 'Error al actualizar orden' },
-      { status: 500 }
-    )
-  }
-}
+    const { searchParams } = new URL(request.url)
+    const operadorId = searchParams.get('operadorId')
 
-// PATCH - Actualizar un campo específico
-export async function PATCH(request: NextRequest) {
-  try {
-    const body = await request.json()
-    const { operadorId, campo, valor } = body
-    
-    if (!operadorId || !campo) {
-      return NextResponse.json(
-        { success: false, error: 'Operador ID y campo requeridos' },
-        { status: 400 }
-      )
+    if (!operadorId) {
+      return NextResponse.json({ success: false, error: 'ID de operador requerido' }, { status: 400 })
     }
-    
-    // Mapear campos válidos
-    const camposValidos: Record<string, string> = {
-      'moduloOrden': 'moduloOrden',
-      'moduloTamano': 'moduloTamano',
-      'moduloVisible': 'moduloVisible',
-      'moduloColor': 'moduloColor',
-      'sidebarExpandido': 'sidebarExpandido',
-      'gruposExpandidos': 'gruposExpandidos',
-      'tema': 'tema',
-      'tamanoFuente': 'tamanoFuente',
-      'densidad': 'densidad',
-      'paginaInicio': 'paginaInicio'
-    }
-    
-    const campoDb = camposValidos[campo]
-    if (!campoDb) {
-      return NextResponse.json(
-        { success: false, error: 'Campo no válido' },
-        { status: 400 }
-      )
-    }
-    
-    // Campos JSON
-    const jsonFields = ['moduloOrden', 'moduloTamano', 'moduloVisible', 'moduloColor', 'gruposExpandidos']
-    const valorFinal = jsonFields.includes(campo) ? JSON.stringify(valor) : valor
-    
-    const preferencias = await db.preferenciasUI.upsert({
-      where: { operadorId },
-      create: {
-        operadorId,
-        [campoDb]: valorFinal
-      } as Prisma.PreferenciasUICreateInput,
-      update: {
-        [campoDb]: valorFinal
-      }
+
+    await db.preferenciasUI.delete({
+      where: { operadorId }
     })
-    
-    return NextResponse.json({
-      success: true,
-      data: preferencias
-    })
+
+    return NextResponse.json({ success: true, message: 'Preferencias reseteadas' })
   } catch (error) {
-    console.error('Error actualizando preferencia:', error)
-    return NextResponse.json(
-      { success: false, error: 'Error al actualizar preferencia' },
-      { status: 500 }
-    )
+    console.error('Error reseteando preferencias UI:', error)
+    return NextResponse.json({ success: false, error: 'Error al resetear preferencias' }, { status: 500 })
   }
 }
