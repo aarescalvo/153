@@ -845,3 +845,64 @@ Panel Web de Administración, Backups, Exportación y Restauración
 - **Backup y restauración**: Completos desde interfaz web
 - **Listo para subir**: Commit y push a GitHub
 
+
+---
+## Task ID: 88
+### Work Task
+Completar sistema de versiones y subir a GitHub
+
+### Work Log:
+- **Sistema de versiones completado**:
+  * Archivo `.commit` creado con versión semántica "v2.1.0"
+  * API de actualizaciones mejorada:
+    - GET: Obtiene versión instalada desde `.commit` o `package.json`
+    - GET: Verifica última versión en GitHub (SHA + versión semántica)
+    - GET: Obtiene changelog con últimos 10 commits
+    - POST: Ejecuta actualización desde interfaz web
+  * Extracción de versión desde mensajes de commit (ej: "v1.2.3")
+
+- **API de exportación creada** (`/api/admin/exportar/route.ts`):
+  * Exporta tropas, animales, romaneos, clientes, stock, producción
+  * Formatos: CSV, Excel (TSV), JSON
+  * Descarga directa con Content-Disposition
+
+- **API de restauración creada** (`/api/admin/restaurar/route.ts`):
+  * GET: Verifica integridad de backups
+  * POST: Restaura desde backup específico
+  * Backup automático antes de restaurar
+  * Soporte para archivos SQL y ZIP
+
+- **Integración en menú de navegación**:
+  * Agregado permiso `puedeAdminSistema` a interfaz Operador
+  * Agregado type 'adminSistema' a Page
+  * Agregado ícono Database a imports de Lucide
+  * Agregado item "Admin Sistema" en sección Administración
+  * Agregado case 'adminSistema' en renderPage
+
+- **Schema de Prisma actualizado**:
+  * Nuevo campo: `puedeAdminSistema` en modelo Operador
+  * Base de datos sincronizada con `bun run db:push`
+
+- **Archivos creados/modificados**:
+  * `.commit` - Versión actual del sistema
+  * `src/app/api/admin/actualizaciones/route.ts` - API completa
+  * `src/app/api/admin/exportar/route.ts` - Nueva API
+  * `src/app/api/admin/restaurar/route.ts` - Nueva API
+  * `src/app/page.tsx` - Integración en menú
+  * `prisma/schema.prisma` - Nuevos permisos
+
+- **Verificaciones**:
+  * Lint: Sin errores ✓
+  * Base de datos: Sincronizada ✓
+  * Servidor: Funcionando correctamente ✓
+
+- **Git**:
+  * Commit: `v2.1.0 - Sistema completo de administración y versiones`
+  * Push: Exitoso a `https://github.com/aarescalvo/153.git`
+
+### Stage Summary:
+- **Sistema de versiones**: Completo con versión semántica v2.1.0
+- **Panel Admin Sistema**: Integrado al menú de navegación
+- **APIs completas**: Actualizaciones, backups, exportación, restauración
+- **Permisos granulares**: puedeAdminSistema para control de acceso
+- **Subido a GitHub**: Commit 810cb1c en master
