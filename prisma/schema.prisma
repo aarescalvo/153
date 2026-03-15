@@ -176,6 +176,9 @@ model Operador {
   puedeCCIR               Boolean @default(false)
   puedeFacturacion        Boolean @default(false)
   puedeConfiguracion      Boolean @default(false)
+  puedeDashboardFinanciero Boolean @default(false)  // Acceso al dashboard financiero (datos sensibles)
+  puedeAutorizarReportes  Boolean @default(false)  // Puede autorizar envío de reportes por email
+  puedeAdminSistema       Boolean @default(false)  // Acceso a administración del sistema (actualizaciones, backups)
   
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -1478,5 +1481,172 @@ enum FormatoReporte {
   PDF                   // Formato PDF
   EXCEL                 // Formato Excel
   AMBOS                 // Ambos formatos
+}
+
+
+// ==================== CONFIGURACIÓN DE BALANZAS ====================
+
+model ConfigBalanza {
+  id                String          @id @default(cuid())
+  nombre            String          @unique         // Nombre identificatorio
+  modelo            String?                         // Modelo de la balanza
+  marca             String?                         // Marca
+  
+  // Tipo de conexión
+  tipoConexion      TipoConexionBalanza @default(SERIAL)
+  
+  // Configuración Serial
+  puertoSerial      String?         // COM1, COM2, /dev/ttyUSB0, etc.
+  baudRate          Int?            @default(9600)
+  dataBits          Int?            @default(8)
+  stopBits          Int?            @default(1)
+  paridad           String?         @default("NONE")  // NONE, ODD, EVEN
+  
+  // Configuración TCP/IP
+  direccionIP       String?         // 192.168.1.100
+  puertoTCP         Int?            // 5000
+  
+  // Configuración de lectura
+  protocolo         String?         @default("CONTINUO")  // CONTINUO, DEMANDA
+  timeout           Int?            @default(5000)   // ms
+  intervaloLectura  Int?            @default(500)    // ms entre lecturas
+  
+  // Comandos (protocolo específico)
+  comandoPesar      String?         // Comando para solicitar peso
+  comandoTara       String?         // Comando para tara
+  comandoCero       String?         // Comando para poner a cero
+  
+  // Parseo de respuesta
+  formatoTrama      String?         // Formato de la trama (regex o descripción)
+  posicionPeso      String?         // Posición del peso en la trama
+  decimales         Int?            @default(2)      // Decimales del peso
+  unidad            String?         @default("KG")   // Unidad de medida
+  
+  // Estado
+  activa            Boolean         @default(true)
+  esPrincipal       Boolean         @default(false)  // Balanza principal del sistema
+  
+  // Ubicación
+  ubicacion         String?         // Playa, Romaneo, Despostada, etc.
+  terminalId        String?         // ID de la terminal donde está conectada
+  
+  observaciones     String?
+  
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  
+  @@index([activa])
+  @@index([esPrincipal])
+}
+
+enum TipoConexionBalanza {
+  SERIAL              // Puerto serie RS232
+  TCP_IP              // Red Ethernet/WiFi
+  USB                 // Puerto USB (simula serial)
+  SIMULADA            // Simulada para pruebas
+}
+
+// ==================== AUTORIZACIONES DE REPORTES ====================
+
+model AutorizacionReporte {
+  id                  String              @id @default(cuid())
+  
+  // Reporte a autorizar
+  reporteId           String?             // ID del reporte específico (si aplica)
+  tipoReporte         String              // FAENA_DIARIO, FAENA_SEMANAL, STOCK, etc.
+  
+  // Datos del reporte (snapshot al momento de solicitar autorización)
+  datosReporte        String?             // JSON con los datos del reporte
+  resumenReporte      String?             // Resumen legible
+  
+  // Solicitante
+  solicitadoPorId     String?             // Operador que solicita el envío
+  solicitadoPor       String?             // Nombre del solicitante
+  fechaSolicitud      DateTime            @default(now())
+  
+  // Autorización
+  autorizadoPorId     String?             // Supervisor que autoriza
+  autorizadoPor       String?             // Nombre del supervisor
+  fechaAutorizacion   DateTime?
+  estado              EstadoAutorizacion  @default(PENDIENTE)
+  
+  // Motivos
+  motivoSolicitud     String?             // Por qué se quiere enviar
+  motivoRechazo       String?             // Si fue rechazado, por qué
+  
+  // Destinatarios
+  destinatarios       String              // Lista de emails separados por coma
+  copiasOcultas       String?             // CC
+  
+  // Envío (una vez autorizado)
+  fechaEnvio          DateTime?
+  enviado             Boolean             @default(false)
+  errorEnvio          String?
+  
+  // Vigencia
+  fechaVigencia       DateTime?           // Hasta cuándo es válida la autorización
+  
+  observaciones       String?
+  
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  
+  @@index([tipoReporte])
+  @@index([estado])
+  @@index([fechaSolicitud])
+  @@index([autorizadoPorId])
+}
+
+enum EstadoAutorizacion {
+  PENDIENTE           // Esperando autorización del supervisor
+  AUTORIZADO          // Autorizado, listo para enviar
+  RECHAZADO           // Rechazado por el supervisor
+  ENVIADO             // Reporte enviado
+  VENCIDO             // Autorización vencida
+  CANCELADO           // Cancelado por el solicitante
+}
+
+// ==================== CONFIGURACIÓN DE REPORTES AUTOMÁTICOS ====================
+
+model ConfigReporteAutomatico {
+  id                  String              @id @default(cuid())
+  
+  // Tipo de reporte
+  nombre              String              // Nombre descriptivo
+  tipoReporte         String              // FAENA_DIARIO, STOCK, etc.
+  
+  // Programación
+  frecuencia          FrecuenciaEmail   @default(DIARIO)
+  horaEnvio           String              @default("18:00")  // Hora de envío
+  diasSemana          String?             // "1,2,3,4,5" para lunes a viernes
+  diaMes              Int?                // Día del mes para reportes mensuales
+  
+  // Destinatarios
+  destinatarios       String              // Emails separados por coma
+  copiasOcultas       String?
+  
+  // Configuración
+  formato             FormatoReporte      @default(PDF)
+  requiereAutorizacion Boolean            @default(true)    // Si requiere autorización previa
+  supervisoresAuth    String?             // IDs de supervisores que pueden autorizar
+  
+  // Contenido
+  incluirGraficos     Boolean             @default(true)
+  incluirDetalles     Boolean             @default(true)
+  filtros             String?             // JSON con filtros específicos
+  
+  // Estado
+  activo              Boolean             @default(true)
+  ultimoEnvio         DateTime?
+  proximoEnvio        DateTime?
+  
+  observaciones       String?
+  
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  
+  @@index([tipoReporte])
+  @@index([activo])
+  @@index([proximoEnvio])
 }
 

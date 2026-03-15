@@ -1,18 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import * as fs from 'fs'
+import * as path from 'path'
 
 // GET - Exportar datos
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-    const format = searchParams.get('format') || 'csv' // csv, excel, pdf
-    const tipo = searchParams.get('tipo') || 'tropas' // tropas, animales, romaneos, clientes, completo
+    const tipo = searchParams.get('tipo') || 'tropas'
+    const format = searchParams.get('format') || 'csv'
 
-    // Obtener datos según el tipo
     let data: unknown[] = []
     let headers: string[] = []
-    let fileName = ''
+    let filename = `${tipo}_${new Date().toISOString().split('T')[0]}`
 
+    // Obtener datos según el tipo
     switch (tipo) {
       case 'tropas':
         data = await db.tropa.findMany({
@@ -21,61 +23,63 @@ export async function GET(request: NextRequest) {
             usuarioFaena: true,
             corral: true
           },
-          orderBy: { fechaRecepcion: 'desc' }
+          orderBy: { createdAt: 'desc' }
         })
-        headers = ['Número', 'Código', 'Especie', 'Cabezas', 'Productor', 'Usuario Faena', 'Corral', 'Estado', 'Fecha']
-        fileName = `tropas_${new Date().toISOString().split('T')[0]}`
+        headers = ['ID', 'Código', 'Productor', 'Especie', 'Cabezas', 'Peso Bruto', 'Peso Neto', 'Estado', 'Fecha']
         break
 
       case 'animales':
         data = await db.animal.findMany({
           include: {
-            tropa: true
+            tropa: { include: { productor: true } }
           },
           orderBy: { createdAt: 'desc' },
-          take: 1000 // Limitar para no sobrecargar
+          take: 1000
         })
-        headers = ['Código', 'Tropa', 'Tipo', 'Peso Vivo', 'Estado', 'Corral']
-        fileName = `animales_${new Date().toISOString().split('T')[0]}`
+        headers = ['ID', 'Caravana', 'Tropa', 'Productor', 'Peso Vivo', 'Peso Faena', 'Estado', 'Fecha']
         break
 
       case 'romaneos':
-        data = await db.romaneo.findMany({
+        data = await db.garronAsignado.findMany({
           include: {
-            tipificador: true
+            animal: { include: { tropa: true } },
+            mediaRes: true
           },
-          orderBy: { fecha: 'desc' },
+          orderBy: { createdAt: 'desc' },
           take: 1000
         })
-        headers = ['Garrón', 'Tropa', 'Peso Vivo', 'Media Izq', 'Media Der', 'Total', 'Rinde %', 'Tipificador', 'Fecha']
-        fileName = `romaneos_${new Date().toISOString().split('T')[0]}`
+        headers = ['ID', 'Garrón', 'Tropa', 'Media', 'Peso', 'Clasificación', 'Fecha']
         break
 
       case 'clientes':
         data = await db.cliente.findMany({
           orderBy: { nombre: 'asc' }
         })
-        headers = ['Nombre', 'CUIT', 'Teléfono', 'Localidad', 'Es Productor', 'Es Usuario Faena']
-        fileName = `clientes_${new Date().toISOString().split('T')[0]}`
+        headers = ['ID', 'Nombre', 'CUIT', 'Dirección', 'Teléfono', 'Email', 'Activo']
         break
 
-      case 'completo':
-        // Exportar resumen completo
-        const [tropas, animales, clientes, corrales] = await Promise.all([
-          db.tropa.count(),
-          db.animal.count(),
-          db.cliente.count(),
-          db.corral.count()
-        ])
-        data = [{
-          tropas,
-          animales,
-          clientes,
-          corrales,
-          fechaExportacion: new Date().toISOString()
-        }]
-        headers = ['Métrica', 'Valor']
-        fileName = `resumen_${new Date().toISOString().split('T')[0]}`
+      case 'stock':
+        const stockData = await db.stockCamara.findMany({
+          include: {
+            producto: true,
+            camara: true
+          },
+          orderBy: { updatedAt: 'desc' }
+        })
+        data = stockData
+        headers = ['ID', 'Producto', 'Cámara', 'Cantidad', 'Peso Total', 'Fecha']
+        break
+
+      case 'produccion':
+        const produccion = await db.ingresoDespostada.findMany({
+          include: {
+            producto: true
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 500
+        })
+        data = produccion
+        headers = ['ID', 'Producto', 'Peso', 'Cajones', 'Fecha']
         break
 
       default:
@@ -85,50 +89,48 @@ export async function GET(request: NextRequest) {
         }, { status: 400 })
     }
 
-    // Formatear datos según el formato solicitado
+    // Generar archivo según formato
     let content: string
-    let contentType: string
-    let fileExtension: string
+    let mimeType: string
+    let extension: string
 
     switch (format) {
       case 'csv':
-        content = generateCSV(data, headers, tipo)
-        contentType = 'text/csv'
-        fileExtension = 'csv'
+        content = generateCSV(data, headers)
+        mimeType = 'text/csv'
+        extension = 'csv'
         break
 
       case 'excel':
-        // Para Excel, generamos CSV compatible (en producción usaríamos xlsx)
-        content = generateCSV(data, headers, tipo)
-        contentType = 'application/vnd.ms-excel'
-        fileExtension = 'xls'
-        break
-
-      case 'pdf':
-        // Para PDF, generamos HTML que se puede imprimir
-        content = generateHTML(data, headers, tipo)
-        contentType = 'text/html'
-        fileExtension = 'html'
+      case 'xls':
+        content = generateCSV(data, headers, '\t') // TSV para Excel
+        mimeType = 'application/vnd.ms-excel'
+        extension = 'xls'
         break
 
       case 'json':
         content = JSON.stringify(data, null, 2)
-        contentType = 'application/json'
-        fileExtension = 'json'
+        mimeType = 'application/json'
+        extension = 'json'
         break
 
       default:
         return NextResponse.json({
           success: false,
-          error: 'Formato no válido. Use: csv, excel, pdf, json'
+          error: 'Formato no soportado'
         }, { status: 400 })
     }
 
-    return new NextResponse(content, {
+    // Crear respuesta con el archivo
+    const encoder = new TextEncoder()
+    const encodedContent = encoder.encode(content)
+
+    return new NextResponse(encodedContent, {
       status: 200,
       headers: {
-        'Content-Type': contentType,
-        'Content-Disposition': `attachment; filename="${fileName}.${fileExtension}"`
+        'Content-Type': mimeType,
+        'Content-Disposition': `attachment; filename="${filename}.${extension}"`,
+        'Content-Length': encodedContent.length.toString()
       }
     })
 
@@ -143,146 +145,73 @@ export async function GET(request: NextRequest) {
 }
 
 // Función para generar CSV
-function generateCSV(data: unknown[], headers: string[], tipo: string): string {
-  const rows: string[][] = [headers]
-
-  data.forEach((item: unknown) => {
-    const record = item as Record<string, unknown>
-    
-    switch (tipo) {
-      case 'tropas':
-        rows.push([
-          String(record.numero || ''),
-          String(record.codigo || ''),
-          String(record.especie || ''),
-          String(record.cantidadCabezas || ''),
-          String((record.productor as Record<string, unknown>)?.nombre || ''),
-          String((record.usuarioFaena as Record<string, unknown>)?.nombre || ''),
-          String((record.corral as Record<string, unknown>)?.nombre || ''),
-          String(record.estado || ''),
-          String(record.fechaRecepcion ? new Date(record.fechaRecepcion as string).toLocaleDateString('es-AR') : '')
-        ])
-        break
-
-      case 'animales':
-        rows.push([
-          String(record.codigo || ''),
-          String((record.tropa as Record<string, unknown>)?.codigo || ''),
-          String(record.tipoAnimal || ''),
-          String(record.pesoVivo || ''),
-          String(record.estado || ''),
-          String(record.corralId || '')
-        ])
-        break
-
-      case 'romaneos':
-        rows.push([
-          String(record.garron || ''),
-          String(record.tropaCodigo || ''),
-          String(record.pesoVivo || ''),
-          String(record.pesoMediaIzq || ''),
-          String(record.pesoMediaDer || ''),
-          String(record.pesoTotal || ''),
-          String(record.rinde ? `${record.rinde}%` : ''),
-          String((record.tipificador as Record<string, unknown>)?.nombre || ''),
-          String(record.fecha ? new Date(record.fecha as string).toLocaleDateString('es-AR') : '')
-        ])
-        break
-
-      case 'clientes':
-        rows.push([
-          String(record.nombre || ''),
-          String(record.cuit || ''),
-          String(record.telefono || ''),
-          String(record.localidad || ''),
-          String(record.esProductor ? 'Sí' : 'No'),
-          String(record.esUsuarioFaena ? 'Sí' : 'No')
-        ])
-        break
-
-      default:
-        rows.push(Object.values(record).map(v => String(v || '')))
-    }
-  })
-
-  return rows.map(row => 
-    row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')
-  ).join('\n')
+function generateCSV(data: unknown[], headers: string[], separator: string = ','): string {
+  const lines: string[] = []
+  
+  // Agregar encabezados
+  lines.push(headers.join(separator))
+  
+  // Agregar datos
+  for (const item of data) {
+    const row = extractRowValues(item, headers.length)
+    lines.push(row.map(v => escapeCSV(v, separator)).join(separator))
+  }
+  
+  return lines.join('\n')
 }
 
-// Función para generar HTML (para PDF)
-function generateHTML(data: unknown[], headers: string[], tipo: string): string {
-  const title = `Reporte de ${tipo.charAt(0).toUpperCase() + tipo.slice(1)}`
-  const date = new Date().toLocaleDateString('es-AR', { 
-    weekday: 'long', 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric' 
-  })
+// Función para extraer valores de fila
+function extractRowValues(item: unknown, count: number): string[] {
+  const result: string[] = []
+  const obj = item as Record<string, unknown>
+  
+  // Intentar extraer valores comunes
+  const commonFields = [
+    'id', 'codigo', 'nombre', 'numero', 'cuit', 'direccion', 'telefono', 'email',
+    'activo', 'especie', 'cantidadCabezas', 'pesoBruto', 'pesoNeto', 'estado',
+    'createdAt', 'updatedAt', 'peso', 'pesoVivo', 'pesoFaena', 'caravana',
+    'garron', 'media', 'clasificacion', 'producto', 'productor', 'corral'
+  ]
+  
+  for (let i = 0; i < count; i++) {
+    const field = commonFields[i] || `field${i}`
+    const value = getNestedValue(obj, field)
+    result.push(value)
+  }
+  
+  return result
+}
 
-  const rows = (data as Record<string, unknown>[]).map((record) => {
-    switch (tipo) {
-      case 'tropas':
-        return `
-          <tr>
-            <td>${record.numero || ''}</td>
-            <td>${record.codigo || ''}</td>
-            <td>${record.especie || ''}</td>
-            <td>${record.cantidadCabezas || ''}</td>
-            <td>${(record.productor as Record<string, unknown>)?.nombre || '-'}</td>
-            <td>${(record.usuarioFaena as Record<string, unknown>)?.nombre || ''}</td>
-            <td>${record.estado || ''}</td>
-          </tr>
-        `
-      default:
-        return `<tr><td colspan="${headers.length}">Ver datos</td></tr>`
+// Función para obtener valor anidado
+function getNestedValue(obj: Record<string, unknown>, field: string): string {
+  // Manejar campos anidados (ej: productor.nombre)
+  const parts = field.split('.')
+  let current: unknown = obj
+  
+  for (const part of parts) {
+    if (current && typeof current === 'object' && part in current) {
+      current = (current as Record<string, unknown>)[part]
+    } else {
+      // Intentar buscar el campo directamente
+      for (const key of Object.keys(obj)) {
+        if (key.toLowerCase().includes(field.toLowerCase())) {
+          current = obj[key]
+          break
+        }
+      }
+      break
     }
-  }).join('')
+  }
+  
+  if (current === null || current === undefined) return ''
+  if (current instanceof Date) return current.toISOString()
+  return String(current)
+}
 
-  return `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <title>${title}</title>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 40px; }
-    h1 { color: #1a1a1a; border-bottom: 2px solid #f59e0b; padding-bottom: 10px; }
-    .date { color: #666; margin-bottom: 20px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-    th { background: #f59e0b; color: white; padding: 12px; text-align: left; }
-    td { padding: 10px; border-bottom: 1px solid #ddd; }
-    tr:nth-child(even) { background: #f9f9f9; }
-    .footer { margin-top: 40px; text-align: center; color: #999; font-size: 12px; }
-    @media print {
-      body { margin: 0; }
-      .no-print { display: none; }
-    }
-  </style>
-</head>
-<body>
-  <h1>${title}</h1>
-  <p class="date">Generado el ${date}</p>
-  
-  <table>
-    <thead>
-      <tr>
-        ${headers.map(h => `<th>${h}</th>`).join('')}
-      </tr>
-    </thead>
-    <tbody>
-      ${rows}
-    </tbody>
-  </table>
-  
-  <p class="footer">
-    Sistema Frigorífico - Solemar Alimentaria
-  </p>
-  
-  <script>
-    window.onload = function() { window.print(); }
-  </script>
-</body>
-</html>
-  `
+// Función para escapar valores CSV
+function escapeCSV(value: string, separator: string): string {
+  if (value.includes(separator) || value.includes('"') || value.includes('\n')) {
+    return `"${value.replace(/"/g, '""')}"`
+  }
+  return value
 }
