@@ -1,7 +1,7 @@
 'use client'
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Settings, Building2, Warehouse, UserCheck, Package, Users, Truck, Beef } from 'lucide-react'
+import { Settings, Building2, Warehouse, UserCheck, Package, Users, Truck, Beef, Database } from 'lucide-react'
 import { ConfigFrigorifico } from './config-frigorifico'
 import { Corrales } from './corrales'
 import { Camaras } from './camaras'
@@ -10,11 +10,15 @@ import { Productos } from './productos'
 import { Operadores } from './operadores'
 import { Transportistas } from './transportistas'
 import { Clientes } from './clientes'
+import { AdminSistemaModule } from './admin-sistema'
 
 interface Operador {
   id: string
   nombre: string
   nivel: string
+  permisos?: {
+    puedeConfiguracion?: boolean
+  }
 }
 
 export function ConfiguracionModule({ operador }: { operador: Operador }) {
@@ -27,7 +31,7 @@ export function ConfiguracionModule({ operador }: { operador: Operador }) {
         </div>
 
         <Tabs defaultValue="frigorifico" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 lg:grid-cols-8 gap-1 h-auto">
+          <TabsList className="grid w-full grid-cols-4 lg:grid-cols-9 gap-1 h-auto">
             <TabsTrigger value="frigorifico" className="flex items-center gap-1 text-xs md:text-sm px-2 md:px-3">
               <Building2 className="w-4 h-4" />
               <span className="hidden lg:inline">Frigorífico</span>
@@ -60,6 +64,10 @@ export function ConfiguracionModule({ operador }: { operador: Operador }) {
               <Users className="w-4 h-4" />
               <span className="hidden lg:inline">Operadores</span>
             </TabsTrigger>
+            <TabsTrigger value="sistema" className="flex items-center gap-1 text-xs md:text-sm px-2 md:px-3 bg-amber-100">
+              <Database className="w-4 h-4" />
+              <span className="hidden lg:inline">Sistema</span>
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="frigorifico">
@@ -85,6 +93,9 @@ export function ConfiguracionModule({ operador }: { operador: Operador }) {
           </TabsContent>
           <TabsContent value="operadores">
             <Operadores operador={operador} />
+          </TabsContent>
+          <TabsContent value="sistema">
+            <AdminSistemaModule operador={operador} />
           </TabsContent>
         </Tabs>
       </div>

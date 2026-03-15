@@ -765,3 +765,83 @@ type C:\SolemarFrigorifico\config\sistema.conf
 - **Instalador mejorado**: Ahora configura repositorio automáticamente
 - **Listo para subir**: Commit y push a GitHub
 
+---
+## Task ID: 87
+### Work Task
+Panel Web de Administración, Backups, Exportación y Restauración
+
+### Work Log:
+- **Panel Web de Administración** (`configuracion/admin-sistema.tsx`):
+  * Pestaña Actualizaciones:
+    - Ver versión instalada y disponible
+    - Verificar actualizaciones desde GitHub
+    - Actualizar con un clic
+    - Cambiar repositorio de actualizaciones
+    - Ver changelog de cambios
+  * Pestaña Backups:
+    - Listar backups disponibles
+    - Crear backup manual
+    - Eliminar backups antiguos
+    - Ver tamaño y fecha de cada backup
+  * Pestaña Exportar:
+    - Exportar Tropas a CSV/Excel/PDF
+    - Exportar Romaneos a CSV/Excel/PDF
+    - Exportar Clientes a CSV/Excel
+    - Exportar Animales a CSV/Excel
+  * Pestaña Restaurar:
+    - Seleccionar backup para restaurar
+    - Advertencia antes de restaurar
+    - Crear backup automático antes de restaurar
+
+- **API de Actualizaciones** (`/api/admin/actualizaciones/route.ts`):
+  * GET: Verificar actualizaciones disponibles desde GitHub
+  * POST: Ejecutar actualización (con backup automático)
+
+- **API de Backups** (`/api/admin/backups/route.ts`):
+  * GET: Listar backups disponibles con tamaño y fecha
+  * POST: Crear nuevo backup (con compresión opcional)
+  * DELETE: Eliminar backup específico
+
+- **API de Exportación** (`/api/admin/exportar/route.ts`):
+  * Exportar datos en múltiples formatos:
+    - CSV: Compatible con Excel
+    - Excel: Formato XLS
+    - PDF: HTML imprimible
+    - JSON: Para integraciones
+  * Tipos de exportación:
+    - Tropas (con productor, usuario faena, corral)
+    - Animales (con tropa, tipo, peso)
+    - Romaneos (con tipificador, rinde)
+    - Clientes (con contactos)
+    - Resumen completo
+
+- **API de Restauración** (`/api/admin/restaurar/route.ts`):
+  * GET: Listar backups para restaurar
+  * POST: Restaurar desde backup específico
+  * Backup automático del estado actual antes de restaurar
+
+- **Integración en Configuración**:
+  * Nuevo tab "Sistema" con ícono de base de datos
+  * Acceso desde el menú de configuración
+  * Interfaz intuitiva con 4 pestañas
+
+### Funcionalidades Implementadas:
+
+| Funcionalidad | Descripción |
+|--------------|-------------|
+| Verificar actualizaciones | Conecta con GitHub API |
+| Actualizar sistema | Descarga e instala última versión |
+| Cambiar repositorio | Permite usar diferentes fuentes |
+| Crear backup | Backup de base de datos |
+| Listar backups | Ver todos los backups |
+| Eliminar backup | Borrar backups antiguos |
+| Exportar datos | CSV, Excel, PDF, JSON |
+| Restaurar backup | Recuperar datos anteriores |
+
+### Stage Summary:
+- **Panel Web completo**: 4 pestañas funcionales
+- **APIs creadas**: 4 nuevas APIs
+- **Exportación múltiple**: CSV, Excel, PDF, JSON
+- **Backup y restauración**: Completos desde interfaz web
+- **Listo para subir**: Commit y push a GitHub
+
