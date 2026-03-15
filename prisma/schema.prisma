@@ -374,6 +374,10 @@ model Tropa {
   @@index([especie])
   @@index([estado])
   @@index([fechaRecepcion])
+  @@index([productorId])
+  @@index([usuarioFaenaId])
+  @@index([operadorId])
+  @@index([corralId])
 }
 
 // Detalle de tipos de animales por tropa
@@ -429,7 +433,7 @@ enum EstadoTropa {
 model Animal {
   id             String       @id @default(cuid())
   tropaId        String
-  tropa          Tropa        @relation(fields: [tropaId], references: [id])
+  tropa          Tropa        @relation(fields: [tropaId], references: [id], onDelete: Cascade)
   
   numero         Int          // Número secuencial dentro de la tropa
   codigo         String       @unique // Código completo: B20260001-001
@@ -457,6 +461,8 @@ model Animal {
   
   @@unique([tropaId, numero])
   @@index([estado])
+  @@index([tropaId])
+  @@index([corralId])
 }
 
 enum EstadoAnimal {
@@ -566,7 +572,7 @@ enum EstadoPesaje {
 model PesajeIndividual {
   id            String     @id @default(cuid())
   animalId      String     @unique
-  animal        Animal     @relation(fields: [animalId], references: [id])
+  animal        Animal     @relation(fields: [animalId], references: [id], onDelete: Cascade)
   
   peso          Float
   caravana      String?    // Si se lee automáticamente
@@ -580,6 +586,7 @@ model PesajeIndividual {
   updatedAt     DateTime   @updatedAt
   
   @@index([fecha])
+  @@index([animalId])
 }
 
 // ==================== LISTA DE FAENA ====================
@@ -641,12 +648,12 @@ enum EstadoListaFaena {
 model AsignacionGarron {
   id            String       @id @default(cuid())
   listaFaenaId  String?
-  listaFaena    ListaFaena?  @relation(fields: [listaFaenaId], references: [id])
+  listaFaena    ListaFaena?  @relation(fields: [listaFaenaId], references: [id], onDelete: SetNull)
   
   garron        Int          // Número de garrón (correlativo por día)
   
   animalId      String?      @unique
-  animal        Animal?      @relation(fields: [animalId], references: [id])
+  animal        Animal?      @relation(fields: [animalId], references: [id], onDelete: SetNull)
   
   // Datos al momento de la asignación (se pueden modificar)
   tropaCodigo   String?      // Código de tropa (denormalizado)
@@ -733,7 +740,7 @@ enum EstadoRomaneo {
 model MediaRes {
   id            String       @id @default(cuid())
   romaneoId     String
-  romaneo       Romaneo      @relation(fields: [romaneoId], references: [id])
+  romaneo       Romaneo      @relation(fields: [romaneoId], references: [id], onDelete: Cascade)
   
   lado          LadoMedia    // IZQUIERDA o DERECHA
   peso          Float
@@ -747,13 +754,15 @@ model MediaRes {
   
   // Cámara
   camaraId      String?
-  camara        Camara?      @relation(fields: [camaraId], references: [id])
+  camara        Camara?      @relation(fields: [camaraId], references: [id], onDelete: SetNull)
   
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
   
   @@unique([romaneoId, lado, sigla])
   @@index([estado])
+  @@index([romaneoId])
+  @@index([camaraId])
 }
 
 enum LadoMedia {
@@ -1193,7 +1202,7 @@ enum TipoProductoEnum {
   CORTE_EQUINO
   MENUDENCIA
   SUBPRODUCTO
-  PRODUCTO_ELAVORADO
+  PRODUCTO_ELABORADO
   DESPOSTADO
   OTRO
 }

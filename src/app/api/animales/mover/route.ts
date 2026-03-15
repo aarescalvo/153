@@ -58,52 +58,80 @@ export async function POST(request: NextRequest) {
       return acc
     }, {} as Record<string, typeof animales>)
 
-    // Mover cada animal
-    const movimientosCreados = []
-    for (const [corralOrigenId, animalesGrupo] of Object.entries(porCorralOrigen)) {
-      // Actualizar corral de cada animal
-      await db.animal.updateMany({
-        where: {
-          id: { in: animalesGrupo.map(a => a.id) }
-        },
-        data: {
-          corralId: corralDestinoId
-        }
-      })
-
-      // Crear registro de movimiento
-      const movimiento = await db.movimientoCorral.create({
-        data: {
-          corralOrigenId: corralOrigenId === 'sin-corral' ? null : corralOrigenId,
-          corralDestinoId,
-          cantidad: animalesGrupo.length,
-          especie: animalesGrupo[0].tropa.especie,
-          observaciones: observaciones || `Movimiento de ${animalesGrupo.length} animal(es)`,
-          operadorId: operadorId || null
-        }
-      })
-      movimientosCreados.push(movimiento)
-
-      // Registrar auditoría
-      for (const animal of animalesGrupo) {
-        await db.auditoria.create({
+    // Use transaction for all operations
+    const result = await db.$transaction(async (tx) => {
+      const movimientosCreados = []
+      
+      for (const [corralOrigenId, animalesGrupo] of Object.entries(porCorralOrigen)) {
+        // Determinar especie predominante
+        const especiePredominante = animalesGrupo[0].tropa.especie
+        
+        // Actualizar corral de cada animal
+        await tx.animal.updateMany({
+          where: {
+            id: { in: animalesGrupo.map(a => a.id) }
+          },
           data: {
-            operadorId: operadorId || null,
-            modulo: 'MOVIMIENTO_HACIENDA',
-            accion: 'UPDATE',
-            entidad: 'Animal',
-            entidadId: animal.id,
-            descripcion: `Animal ${animal.codigo} movido de ${corralOrigenId === 'sin-corral' ? 'sin corral' : corralOrigenId} a ${corralDestino.nombre}`
+            corralId: corralDestinoId
           }
         })
+
+        // Actualizar stock del corral origen
+        if (corralOrigenId !== 'sin-corral') {
+          await tx.corral.update({
+            where: { id: corralOrigenId },
+            data: {
+              stockBovinos: especiePredominante === 'BOVINO' ? { decrement: animalesGrupo.length } : undefined,
+              stockEquinos: especiePredominante === 'EQUINO' ? { decrement: animalesGrupo.length } : undefined
+            }
+          })
+        }
+
+        // Actualizar stock del corral destino
+        await tx.corral.update({
+          where: { id: corralDestinoId },
+          data: {
+            stockBovinos: especiePredominante === 'BOVINO' ? { increment: animalesGrupo.length } : undefined,
+            stockEquinos: especiePredominante === 'EQUINO' ? { increment: animalesGrupo.length } : undefined
+          }
+        })
+
+        // Crear registro de movimiento
+        const movimiento = await tx.movimientoCorral.create({
+          data: {
+            corralOrigenId: corralOrigenId === 'sin-corral' ? null : corralOrigenId,
+            corralDestinoId,
+            cantidad: animalesGrupo.length,
+            especie: especiePredominante,
+            observaciones: observaciones || `Movimiento de ${animalesGrupo.length} animal(es)`,
+            operadorId: operadorId || null
+          }
+        })
+        movimientosCreados.push(movimiento)
+
+        // Registrar auditoría
+        for (const animal of animalesGrupo) {
+          await tx.auditoria.create({
+            data: {
+              operadorId: operadorId || null,
+              modulo: 'MOVIMIENTO_HACIENDA',
+              accion: 'UPDATE',
+              entidad: 'Animal',
+              entidadId: animal.id,
+              descripcion: `Animal ${animal.codigo} movido de ${corralOrigenId === 'sin-corral' ? 'sin corral' : corralOrigenId} a ${corralDestino.nombre}`
+            }
+          })
+        }
       }
-    }
+
+      return movimientosCreados
+    })
 
     return NextResponse.json({
       success: true,
       data: {
         movidos: animales.length,
-        movimientos: movimientosCreados
+        movimientos: result
       }
     })
   } catch (error) {

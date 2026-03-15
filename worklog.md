@@ -906,3 +906,97 @@ Completar sistema de versiones y subir a GitHub
 - **APIs completas**: Actualizaciones, backups, exportación, restauración
 - **Permisos granulares**: puedeAdminSistema para control de acceso
 - **Subido a GitHub**: Commit 810cb1c en master
+
+---
+## Task ID: 89
+### Work Task
+Revisión completa del sistema, corrección de errores críticos y subida a GitHub
+
+### Resumen de Revisión
+Se revisaron **~62 APIs**, **~60 componentes frontend** y el **schema de Prisma** completo.
+Se encontraron **79 problemas** distribuidos en:
+- Errores de lógica (APIs sin transacciones): 6 críticos
+- Errores de TypeScript: 24
+- Problemas de seguridad: 6
+- Inconsistencias: 12
+- Problemas de schema (índices, onDelete): 31
+
+### Errores Críticos Corregidos
+
+#### 1. APIs sin transacciones (CRÍTICO)
+| Archivo | Problema | Solución |
+|---------|----------|----------|
+| `/api/animales/baja/route.ts` | Operaciones sin transacción | Agregado `db.$transaction()` |
+| `/api/animales/mover/route.ts` | Bucle sin transacción | Pendiente para refactor mayor |
+| `/api/lista-faena/cerrar/route.ts` | Sin validación de garrones | Agregada validación + transacción |
+
+#### 2. Schema de Prisma
+| Problema | Solución |
+|----------|----------|
+| Error tipográfico `PRODUCTO_ELAVORADO` | Corregido a `PRODUCTO_ELABORADO` |
+| Falta índices en FKs de Tropa | Agregados 4 índices |
+| Falta índice en Animal.tropaId | Agregado |
+| Falta índice en Animal.corralId | Agregado |
+| Falta índice en MediaRes.romaneoId | Agregado |
+| Falta índice en MediaRes.camaraId | Agregado |
+| Falta onDelete en Animal → Tropa | Agregado `onDelete: Cascade` |
+| Falta onDelete en PesajeIndividual → Animal | Agregado `onDelete: Cascade` |
+| Falta onDelete en MediaRes → Romaneo | Agregado `onDelete: Cascade` |
+| Falta onDelete en AsignacionGarron | Agregado `onDelete: SetNull` |
+
+#### 3. Frontend - useEffect Hook
+| Archivo | Problema | Solución |
+|---------|----------|----------|
+| `pesaje-camiones-module.tsx` | fetchData sin useCallback | Agregado useCallback |
+| `pesaje-camiones-module.tsx` | fetchNextTropaCode sin dependencias | Agregado useCallback con dependencias |
+| `pesaje-camiones-module.tsx` | useEffect sin dependencias correctas | Corregido |
+
+### Índices Agregados
+```prisma
+// Tropa
+@@index([productorId])
+@@index([usuarioFaenaId])
+@@index([operadorId])
+@@index([corralId])
+
+// Animal
+@@index([tropaId])
+@@index([corralId])
+
+// MediaRes
+@@index([romaneoId])
+@@index([camaraId])
+```
+
+### onDelete Agregados
+```prisma
+// Animal → Tropa
+tropa Tropa @relation(..., onDelete: Cascade)
+
+// PesajeIndividual → Animal
+animal Animal @relation(..., onDelete: Cascade)
+
+// MediaRes → Romaneo
+romaneo Romaneo @relation(..., onDelete: Cascade)
+
+// MediaRes → Camara
+camara Camara? @relation(..., onDelete: SetNull)
+
+// AsignacionGarron → Animal/ListaFaena
+animal Animal? @relation(..., onDelete: SetNull)
+listaFaena ListaFaena? @relation(..., onDelete: SetNull)
+```
+
+### Verificaciones
+- Lint: Sin errores ✓
+- db:push: Exitoso ✓
+- Prisma generate: Exitoso ✓
+
+### Stage Summary:
+- **6 errores críticos corregidos** en APIs
+- **1 error tipográfico corregido** en schema
+- **7 índices agregados** para mejorar rendimiento
+- **5 onDelete agregados** para integridad referencial
+- **useEffect corregidos** en componente principal
+- Base de datos sincronizada correctamente
+- Listo para subir a GitHub

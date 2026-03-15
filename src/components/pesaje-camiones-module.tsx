@@ -126,28 +126,8 @@ export function PesajeCamionesModule({ operador, onTropaCreada }: { operador: Op
   const usuariosFaena = clientes.filter(c => c.esUsuarioFaena)
   const totalCabezas = tiposAnimales.reduce((acc, t) => acc + t.cantidad, 0)
 
-  // Fetch data
-  useEffect(() => {
-    fetchData()
-  }, [])
-
-  // Filter history by date
-  useEffect(() => {
-    let filtered = pesajesCerrados
-    if (fechaDesde) {
-      const desde = new Date(fechaDesde)
-      desde.setHours(0, 0, 0, 0)
-      filtered = filtered.filter(p => new Date(p.fecha) >= desde)
-    }
-    if (fechaHasta) {
-      const hasta = new Date(fechaHasta)
-      hasta.setHours(23, 59, 59, 999)
-      filtered = filtered.filter(p => new Date(p.fecha) <= hasta)
-    }
-    setPesajesFiltrados(filtered)
-  }, [pesajesCerrados, fechaDesde, fechaHasta])
-
-  const fetchData = async () => {
+  // Fetch data function wrapped in useCallback
+  const fetchData = useCallback(async () => {
     try {
       const [pesajesRes, transRes, clientesRes, corralesRes] = await Promise.all([
         fetch('/api/pesaje-camion'),
@@ -181,16 +161,10 @@ export function PesajeCamionesModule({ operador, onTropaCreada }: { operador: Op
     } catch (error) {
       console.error('Error fetching data:', error)
     }
-  }
+  }, [])
 
-  // Fetch next tropa code when especie changes
-  useEffect(() => {
-    if (tipoPesaje === 'INGRESO_HACIENDA') {
-      fetchNextTropaCode()
-    }
-  }, [especie, tipoPesaje])
-
-  const fetchNextTropaCode = async () => {
+  // Fetch next tropa code wrapped in useCallback
+  const fetchNextTropaCode = useCallback(async () => {
     try {
       const res = await fetch(`/api/pesaje-camion?action=nextTropaCode&especie=${especie}`)
       const data = await res.json()
@@ -200,7 +174,35 @@ export function PesajeCamionesModule({ operador, onTropaCreada }: { operador: Op
     } catch (error) {
       console.error('Error fetching next tropa code:', error)
     }
-  }
+  }, [especie])
+
+  // Fetch data on mount
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
+
+  // Filter history by date
+  useEffect(() => {
+    let filtered = pesajesCerrados
+    if (fechaDesde) {
+      const desde = new Date(fechaDesde)
+      desde.setHours(0, 0, 0, 0)
+      filtered = filtered.filter(p => new Date(p.fecha) >= desde)
+    }
+    if (fechaHasta) {
+      const hasta = new Date(fechaHasta)
+      hasta.setHours(23, 59, 59, 999)
+      filtered = filtered.filter(p => new Date(p.fecha) <= hasta)
+    }
+    setPesajesFiltrados(filtered)
+  }, [pesajesCerrados, fechaDesde, fechaHasta])
+
+  // Fetch next tropa code when especie changes
+  useEffect(() => {
+    if (tipoPesaje === 'INGRESO_HACIENDA') {
+      fetchNextTropaCode()
+    }
+  }, [especie, tipoPesaje, fetchNextTropaCode])
 
   // Reset form
   const resetForm = () => {
