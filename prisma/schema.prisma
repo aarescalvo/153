@@ -1659,3 +1659,33 @@ model ConfigReporteAutomatico {
   @@index([proximoEnvio])
 }
 
+// ==================== PREFERENCIAS DE UI ====================
+
+model PreferenciasUI {
+  id              String   @id @default(cuid())
+  operadorId      String   @unique  // Un usuario = una configuración
+  
+  // Configuración del Dashboard
+  moduloOrden     String?  // JSON con orden de módulos: ["pesajeCamiones", "pesajeIndividual", ...]
+  moduloTamano    String?  // JSON con tamaños: {"pesajeCamiones": "large", "pesajeIndividual": "medium"}
+  moduloVisible   String?  // JSON con visibilidad: {"pesajeCamiones": true, "reportes": false}
+  moduloColor     String?  // JSON con colores personalizados
+  
+  // Configuración del Sidebar
+  sidebarExpandido Boolean @default(true)
+  gruposExpandidos String? // JSON: ["CICLO I", "Subproductos"]
+  
+  // Configuración general
+  tema            String   @default("light")  // light, dark, system
+  tamanoFuente    String   @default("normal") // small, normal, large
+  densidad        String   @default("normal") // compact, normal, comfortable
+  
+  // Otras preferencias
+  paginaInicio    String?  // Página de inicio preferida
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([operadorId])
+}
+

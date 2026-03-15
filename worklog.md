@@ -1074,3 +1074,80 @@ Implementar mejoras de seguridad y calidad de código
 - **Tipos TypeScript**: 18 usos de `any` eliminados
 - **Feedback Visual**: Componentes de loading reutilizables
 - **Calidad de código**: Mejorada significativamente
+
+---
+## Task ID: 91
+### Work Task
+Sistema de personalización de interfaz de usuario
+
+### Work Log:
+
+#### 1. Modelo Prisma para Preferencias UI
+- **Nuevo modelo**: `PreferenciasUI`
+  * `operadorId` - ID único del usuario
+  * `moduloOrden` - Orden de módulos (JSON)
+  * `moduloTamano` - Tamaños por módulo (JSON)
+  * `moduloVisible` - Visibilidad por módulo (JSON)
+  * `moduloColor` - Colores personalizados (JSON)
+  * `sidebarExpandido` - Estado del sidebar
+  * `gruposExpandidos` - Grupos abiertos (JSON)
+  * `tema` - Tema (light, dark, system)
+  * `tamanoFuente` - Tamaño de fuente (small, normal, large)
+  * `densidad` - Densidad del layout (compact, normal, comfortable)
+  * `paginaInicio` - Página de inicio preferida
+
+#### 2. API para Preferencias
+- **Nueva API**: `/api/preferencias-ui/route.ts`
+  * `GET` - Obtener preferencias del operador
+  * `POST` - Crear/actualizar preferencias
+  * `PUT` - Actualizar orden de módulos (drag & drop)
+  * `PATCH` - Actualizar campo específico
+  * Valores por defecto para nuevos usuarios
+  * Parseo automático de JSON fields
+
+#### 3. Componente de Personalización UI
+- **Nuevo componente**: `personalizacion-ui.tsx`
+  * **Drag & Drop**: Reordenar módulos arrastrando
+  * **Tamaños**: Small (1 col), Medium (2 cols), Large (3 cols)
+  * **Colores**: 9 colores predefinidos
+  * **Visibilidad**: Mostrar/ocultar módulos
+  * **Tema**: Claro, Oscuro, Sistema
+  * **Densidad**: Compacto, Normal, Confortable
+  * Vista previa de tamaños
+  * Botón de resetear a valores por defecto
+
+#### 4. Características del Componente:
+| Funcionalidad | Descripción |
+|--------------|-------------|
+| Reordenar | Arrastra módulos para cambiar orden |
+| Tamaño | Pequeño, Mediano, Grande |
+| Color | 9 colores disponibles |
+| Visibilidad | Toggle mostrar/ocultar |
+| Tema | Claro, Oscuro, Sistema |
+| Fuente | Pequeña, Normal, Grande |
+| Densidad | Compacto, Normal, Confortable |
+
+### Cómo Usar:
+1. Click en "Personalizar UI" en configuración
+2. Pestaña "Módulos":
+   - Arrastra para reordenar
+   - Click en tamaño para cambiar
+   - Click en color para seleccionar
+   - Click en ojo para mostrar/ocultar
+3. Pestaña "Apariencia":
+   - Seleccionar tema
+   - Cambiar tamaño de fuente
+   - Cambiar densidad
+4. Click en "Guardar Cambios"
+
+#### Verificaciones:
+- Lint: Sin errores ✓
+- Dev server: Funcionando correctamente ✓
+- Base de datos: Sincronizada ✓
+
+### Stage Summary:
+- **Modelo Prisma**: PreferenciasUI creado
+- **API completa**: GET, POST, PUT, PATCH
+- **Componente personalización**: Drag & drop, tamaños, colores
+- **Preferencias por usuario**: Cada operador tiene su configuración
+- **UI personalizable**: Orden, tamaño, color, visibilidad
