@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { Prisma } from '@prisma/client'
 
 // GET - Fetch facturas
 export async function GET(request: NextRequest) {
@@ -11,7 +12,7 @@ export async function GET(request: NextRequest) {
     const hasta = searchParams.get('hasta')
     const search = searchParams.get('search')
     
-    let where: any = {}
+    let where: Prisma.FacturaWhereInput = {}
     
     if (estado && estado !== 'TODOS') {
       where.estado = estado
@@ -116,7 +117,19 @@ export async function POST(request: NextRequest) {
     
     // Calcular totales
     let subtotal = 0
-    const detallesCalculados = detalles.map((d: any) => {
+    interface DetalleFactura {
+      tipoProducto?: string
+      descripcion?: string
+      cantidad: number
+      unidad?: string
+      precioUnitario: number
+      subtotal: number
+      tropaCodigo?: string
+      garron?: string
+      mediaResId?: string
+      pesoKg?: number
+    }
+    const detallesCalculados: DetalleFactura[] = detalles.map((d) => {
       const subtotalDetalle = Number(d.cantidad) * Number(d.precioUnitario)
       subtotal += subtotalDetalle
       return {
@@ -143,7 +156,7 @@ export async function POST(request: NextRequest) {
         remito: remito || null,
         operadorId: operadorId || null,
         detalles: {
-          create: detallesCalculados.map((d: any) => ({
+          create: detallesCalculados.map((d) => ({
             tipoProducto: d.tipoProducto,
             descripcion: d.descripcion,
             cantidad: Number(d.cantidad),

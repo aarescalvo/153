@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { Prisma } from '@prisma/client'
 
 // GET - Listar todas las Declaraciones Juradas
 export async function GET(request: NextRequest) {
@@ -9,7 +10,7 @@ export async function GET(request: NextRequest) {
     const especie = searchParams.get('especie')
     const search = searchParams.get('search')
     
-    const where: any = {}
+    const where: Prisma.DeclaracionJuradaWhereInput = {}
     
     if (estado && estado !== 'TODOS') {
       where.estado = estado
@@ -123,7 +124,7 @@ export async function PUT(request: NextRequest) {
     const body = await request.json()
     const { id, estado, marcarImpreso } = body
     
-    const updateData: any = {}
+    const updateData: Prisma.DeclaracionJuradaUpdateInput = {}
     
     if (estado) {
       updateData.estado = estado

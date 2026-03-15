@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { Prisma } from '@prisma/client'
 
 // GET - Listar autorizaciones pendientes
 export async function GET(request: Request) {
@@ -8,7 +9,7 @@ export async function GET(request: Request) {
     const estado = searchParams.get('estado') || 'PENDIENTE'
     const tipoReporte = searchParams.get('tipoReporte')
 
-    const where: any = {}
+    const where: Prisma.AutorizacionReporteWhereInput = {}
     if (estado !== 'TODOS') {
       where.estado = estado
     }

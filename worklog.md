@@ -1000,3 +1000,77 @@ listaFaena ListaFaena? @relation(..., onDelete: SetNull)
 - **useEffect corregidos** en componente principal
 - Base de datos sincronizada correctamente
 - Listo para subir a GitHub
+
+---
+## Task ID: 90
+### Work Task
+Implementar mejoras de seguridad y calidad de código
+
+### Work Log:
+
+#### 1. Rate Limiting Implementado
+- **Nuevo archivo**: `/src/lib/rate-limiter.ts`
+  * Rate limiting en memoria con ventanas deslizantes
+  * Configuraciones predefinidas:
+    - AUTH_LOGIN: 5 intentos / 15 min
+    - AUTH_PIN: 10 intentos / 5 min  
+    - AUTH_SUPERVISOR: 3 intentos / 15 min
+    - API_GENERAL: 100 requests / 1 min
+    - API_WRITE: 30 requests / 1 min
+  * Bloqueo automático después de exceder límites
+  * Limpieza periódica de entradas expiradas
+  * Reset de contador en login exitoso
+
+- **APIs actualizadas con rate limiting**:
+  * `/api/auth/route.ts` - Login con usuario/password y PIN
+  * `/api/auth/supervisor/route.ts` - Validación de supervisor
+  * Headers `Retry-After` en respuestas 429
+
+#### 2. Validación de Entrada con Zod
+- **Nuevo archivo**: `/src/lib/validations.ts`
+  * Esquemas de validación para todas las APIs:
+    - LoginSchema, SupervisorAuthSchema
+    - OperadorCreateSchema, OperadorUpdateSchema
+    - PesajeCamionCreateSchema
+    - AnimalCreateSchema, TropaCreateSchema
+    - ClienteCreateSchema, FacturaCreateSchema
+    - Y muchos más...
+  * Función `validateOrError()` para validación automática
+  * Tipos inferidos con `z.infer`
+
+#### 3. Tipos `any` Eliminados (18 usos → 0)
+| Archivo | Cambio |
+|---------|--------|
+| `/api/ccir/route.ts` | `any` → `Prisma.CCIRWhereInput` |
+| `/api/autorizaciones-reporte/route.ts` | `any` → `Prisma.AutorizacionReporteWhereInput` |
+| `/api/animales/route.ts` | `any` → `Prisma.AnimalUpdateInput` |
+| `/api/declaracion-jurada/route.ts` | `any` → `Prisma.DeclaracionJuradaWhereInput` |
+| `/api/facturacion/route.ts` | `any` → `Prisma.FacturaWhereInput` + interfaz `DetalleFactura` |
+| `/api/config-balanzas/route.ts` | `any` → `Prisma.ConfigBalanzaWhereInput` |
+| `/api/clientes/route.ts` | `any` → `Prisma.ClienteUpdateInput` |
+| `/api/pesaje-camion/route.ts` | `any` → `Prisma.PesajeCamionCreateInput` |
+| `pesaje-camiones-module.tsx` | Interfaces `PesajeCamion`, `QuickAddData`, `Record<string, unknown>` |
+
+#### 4. Feedback Visual Mejorado
+- **Nuevo archivo**: `/src/components/ui/loading.tsx`
+  * `LoadingSpinner` - Spinner con tamaños configurables
+  * `LoadingOverlay` - Overlay de carga a pantalla completa
+  * `Skeleton` - Skeleton base reutilizable
+  * `SkeletonCard` - Skeleton para tarjetas
+  * `SkeletonTable` - Skeleton para tablas
+  * `SkeletonForm` - Skeleton para formularios
+  * `SkeletonStats` - Skeleton para estadísticas
+  * `LoadingButton` - Botón con estado de carga
+  * `PageLoading` - Loading de página completa
+  * `SectionLoading` - Loading para secciones
+
+#### Verificaciones:
+- Lint: Sin errores ✓
+- Dev server: Funcionando correctamente ✓
+
+### Stage Summary:
+- **Rate Limiting**: Protección contra brute force en autenticación
+- **Validación Zod**: Esquemas para todas las APIs principales
+- **Tipos TypeScript**: 18 usos de `any` eliminados
+- **Feedback Visual**: Componentes de loading reutilizables
+- **Calidad de código**: Mejorada significativamente

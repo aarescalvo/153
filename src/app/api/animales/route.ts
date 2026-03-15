@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { TipoAnimal } from '@prisma/client'
+import { TipoAnimal, Prisma } from '@prisma/client'
 
 // GET - List animales by tropa
 export async function GET(request: NextRequest) {
@@ -115,7 +115,7 @@ export async function PUT(request: NextRequest) {
     const body = await request.json()
     const { id, pesoVivo, caravana, raza, estado, corral, corralId, tipoAnimal } = body
 
-    const updateData: any = {}
+    const updateData: Prisma.AnimalUpdateInput = {}
     
     if (pesoVivo !== undefined) updateData.pesoVivo = parseFloat(pesoVivo)
     if (caravana !== undefined) updateData.caravana = caravana || null

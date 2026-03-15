@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { Especie, TipoAnimal, EstadoPesaje, TipoPesajeCamion } from '@prisma/client'
+import { Especie, TipoAnimal, EstadoPesaje, TipoPesajeCamion, Prisma } from '@prisma/client'
 
 // V3 - Updated: 2025-03-03 - Fixed FK validation
 
@@ -187,7 +187,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Crear pesaje - NO pasar IDs de FKs inválidos
-    const pesajeData: any = {
+    const pesajeData: Prisma.PesajeCamionCreateInput = {
       tipo: (tipo || 'INGRESO_HACIENDA') as TipoPesajeCamion,
       numeroTicket,
       patenteChasis: patenteChasis || '',
@@ -283,7 +283,7 @@ export async function POST(request: NextRequest) {
       const { codigo, numero } = await generarCodigoTropa(especieEnum)
       
       // Crear la tropa
-      const tropaData: any = {
+      const tropaData: Prisma.TropaCreateInput = {
         numero,
         codigo,
         usuarioFaenaId,

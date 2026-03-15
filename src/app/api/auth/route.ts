@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import bcrypt from 'bcryptjs'
+import { 
+  checkRateLimit, 
+  getClientIp, 
+  getRateLimitKey, 
+  resetRateLimit,
+  RATE_LIMIT_CONFIGS 
+} from '@/lib/rate-limiter'
+import { LoginSchema, validateOrError } from '@/lib/validations'
 
 // GET - Validate operator session
 export async function GET(request: NextRequest) {
@@ -63,17 +71,47 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { usuario, password, pin } = body
     
-    console.log('[AUTH] Login attempt:', { usuario, hasPassword: !!password, hasPin: !!pin })
+    // Validar entrada con Zod
+    const validation = validateOrError(LoginSchema, body)
+    if (!validation.success) {
+      return validation.error
+    }
+    
+    const { usuario, password, pin } = validation.data
+    
+    // Obtener IP del cliente para rate limiting
+    const clientIp = getClientIp(request)
     
     // Login con usuario y password
     if (usuario && password) {
-      console.log('[AUTH] Buscando usuario:', String(usuario).toLowerCase())
+      // Rate limiting por IP + usuario
+      const rateLimitKey = getRateLimitKey(clientIp, usuario.toLowerCase())
+      const rateLimitResult = checkRateLimit(rateLimitKey, RATE_LIMIT_CONFIGS.AUTH_LOGIN)
+      
+      if (!rateLimitResult.allowed) {
+        return NextResponse.json(
+          { 
+            success: false, 
+            error: rateLimitResult.blocked 
+              ? `Demasiados intentos fallidos. Intente nuevamente en ${rateLimitResult.retryAfter} segundos.`
+              : 'Demasiadas solicitudes. Intente más tarde.',
+            retryAfter: rateLimitResult.retryAfter
+          },
+          { 
+            status: 429,
+            headers: rateLimitResult.retryAfter 
+              ? { 'Retry-After': String(rateLimitResult.retryAfter) }
+              : undefined
+          }
+        )
+      }
+      
+      console.log('[AUTH] Login attempt:', { usuario: usuario.toLowerCase(), ip: clientIp })
       
       const operador = await db.operador.findFirst({
         where: {
-          usuario: String(usuario).toLowerCase(),
+          usuario: usuario.toLowerCase(),
           activo: true
         }
       })
@@ -91,10 +129,17 @@ export async function POST(request: NextRequest) {
       
       if (!validPassword) {
         return NextResponse.json(
-          { success: false, error: 'Contraseña incorrecta' },
+          { 
+            success: false, 
+            error: 'Contraseña incorrecta',
+            attemptsRemaining: rateLimitResult.remaining - 1
+          },
           { status: 401 }
         )
       }
+      
+      // Login exitoso - resetear rate limit
+      resetRateLimit(rateLimitKey)
       
       // Registrar login en auditoría
       await db.auditoria.create({
@@ -136,6 +181,28 @@ export async function POST(request: NextRequest) {
     
     // Login con PIN (alternativa rápida)
     if (pin) {
+      // Rate limiting por IP para PIN
+      const rateLimitKey = getRateLimitKey(clientIp, 'pin')
+      const rateLimitResult = checkRateLimit(rateLimitKey, RATE_LIMIT_CONFIGS.AUTH_PIN)
+      
+      if (!rateLimitResult.allowed) {
+        return NextResponse.json(
+          { 
+            success: false, 
+            error: rateLimitResult.blocked 
+              ? `Demasiados intentos fallidos. Intente nuevamente en ${rateLimitResult.retryAfter} segundos.`
+              : 'Demasiadas solicitudes. Intente más tarde.',
+            retryAfter: rateLimitResult.retryAfter
+          },
+          { 
+            status: 429,
+            headers: rateLimitResult.retryAfter 
+              ? { 'Retry-After': String(rateLimitResult.retryAfter) }
+              : undefined
+          }
+        )
+      }
+      
       const operador = await db.operador.findFirst({
         where: {
           pin: String(pin),
@@ -145,10 +212,17 @@ export async function POST(request: NextRequest) {
       
       if (!operador) {
         return NextResponse.json(
-          { success: false, error: 'PIN inválido o operador inactivo' },
+          { 
+            success: false, 
+            error: 'PIN inválido o operador inactivo',
+            attemptsRemaining: rateLimitResult.remaining - 1
+          },
           { status: 401 }
         )
       }
+      
+      // Login exitoso - resetear rate limit
+      resetRateLimit(rateLimitKey)
       
       // Registrar login en auditoría
       await db.auditoria.create({

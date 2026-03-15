@@ -59,6 +59,45 @@ interface TipoAnimalCounter {
   cantidad: number
 }
 
+interface PesajeCamion {
+  id: string
+  tipo: string
+  numeroTicket: number
+  fecha: string
+  patenteChasis: string
+  patenteAcoplado?: string
+  chofer?: string
+  dniChofer?: string
+  transportista?: Transportista
+  destino?: string
+  remito?: string
+  pesoBruto?: number
+  pesoTara?: number
+  pesoNeto?: number
+  descripcion?: string
+  estado: string
+  operador?: { id: string; nombre: string }
+  tropa?: {
+    id: string
+    codigo: string
+    productor?: { nombre: string }
+    usuarioFaena?: { nombre: string }
+    especie: string
+    cantidadCabezas: number
+    corral?: string
+    dte?: string
+    guia?: string
+    tiposAnimales?: TipoAnimalCounter[]
+    observaciones?: string
+  }
+}
+
+interface QuickAddData {
+  id: string
+  nombre: string
+  [key: string]: unknown
+}
+
 export function PesajeCamionesModule({ operador, onTropaCreada }: { operador: Operador; onTropaCreada?: () => void }) {
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [transportistas, setTransportistas] = useState<Transportista[]>([])
@@ -100,25 +139,25 @@ export function PesajeCamionesModule({ operador, onTropaCreada }: { operador: Op
   const [quickAddOpen, setQuickAddOpen] = useState<'transportista' | 'productor' | 'usuarioFaena' | null>(null)
   
   // Pesajes
-  const [pesajesAbiertos, setPesajesAbiertos] = useState<any[]>([])
-  const [pesajesCerrados, setPesajesCerrados] = useState<any[]>([])
+  const [pesajesAbiertos, setPesajesAbiertos] = useState<PesajeCamion[]>([])
+  const [pesajesCerrados, setPesajesCerrados] = useState<PesajeCamion[]>([])
   
   // Dialogs
   const [cerrarOpen, setCerrarOpen] = useState(false)
-  const [pesajeSeleccionado, setPesajeSeleccionado] = useState<any>(null)
+  const [pesajeSeleccionado, setPesajeSeleccionado] = useState<PesajeCamion | null>(null)
   const [taraForm, setTaraForm] = useState(0)
   
   // History filters
   const [fechaDesde, setFechaDesde] = useState('')
   const [fechaHasta, setFechaHasta] = useState('')
-  const [pesajesFiltrados, setPesajesFiltrados] = useState<any[]>([])
+  const [pesajesFiltrados, setPesajesFiltrados] = useState<PesajeCamion[]>([])
   
   // Edit/Delete dialogs
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [supervisorPin, setSupervisorPin] = useState('')
   const [supervisorVerificado, setSupervisorVerificado] = useState(false)
-  const [pesajeAccion, setPesajeAccion] = useState<any>(null)
+  const [pesajeAccion, setPesajeAccion] = useState<PesajeCamion | null>(null)
   
   // Computed
   const pesoNeto = pesoBruto > 0 && pesoTara > 0 ? pesoBruto - pesoTara : 0
@@ -142,8 +181,8 @@ export function PesajeCamionesModule({ operador, onTropaCreada }: { operador: Op
       const corralesData = await corralesRes.json()
       
       if (pesajesData.success) {
-        setPesajesAbiertos(pesajesData.data.filter((p: any) => p.estado === 'ABIERTO'))
-        setPesajesCerrados(pesajesData.data.filter((p: any) => p.estado === 'CERRADO'))
+        setPesajesAbiertos(pesajesData.data.filter((p: PesajeCamion) => p.estado === 'ABIERTO'))
+        setPesajesCerrados(pesajesData.data.filter((p: PesajeCamion) => p.estado === 'CERRADO'))
         setNextTicket(pesajesData.nextTicketNumber)
       }
       
@@ -228,7 +267,7 @@ export function PesajeCamionesModule({ operador, onTropaCreada }: { operador: Op
   }
 
   // Handle quick add
-  const handleQuickAdd = (tipo: string, data: any) => {
+  const handleQuickAdd = (tipo: string, data: QuickAddData) => {
     if (tipo === 'transportista') {
       setTransportistas([...transportistas, data])
       setTransportistaId(data.id)
@@ -288,7 +327,7 @@ export function PesajeCamionesModule({ operador, onTropaCreada }: { operador: Op
 
     setSaving(true)
     try {
-      const payload: any = {
+      const payload: Record<string, unknown> = {
         tipo: tipoPesaje,
         patenteChasis: patenteChasis.toUpperCase(),
         patenteAcoplado: patenteAcoplado?.toUpperCase() || null,
@@ -468,7 +507,7 @@ export function PesajeCamionesModule({ operador, onTropaCreada }: { operador: Op
   }
 
   // Abrir dialog de edición
-  const handleOpenEdit = async (pesaje: any) => {
+  const handleOpenEdit = async (pesaje: PesajeCamion) => {
     setPesajeAccion(pesaje)
     if (!supervisorVerificado) {
       setEditDialogOpen(true)

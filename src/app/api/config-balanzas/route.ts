@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { Prisma } from '@prisma/client'
 
 // GET - Listar configuraciones de balanzas
 export async function GET(request: Request) {
@@ -7,7 +8,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const soloActivas = searchParams.get('activas') === 'true'
 
-    const where: any = {}
+    const where: Prisma.ConfigBalanzaWhereInput = {}
     if (soloActivas) {
       where.activa = true
     }

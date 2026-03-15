@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { Prisma } from '@prisma/client'
 
 // GET - Fetch clientes
 export async function GET(request: NextRequest) {
@@ -103,7 +104,7 @@ export async function PUT(request: NextRequest) {
     }
     
     // Build data object with only provided fields
-    const data: any = {}
+    const data: Prisma.ClienteUpdateInput = {}
     if (nombre !== undefined) data.nombre = nombre
     if (dni !== undefined) data.dni = dni || null
     if (cuit !== undefined) data.cuit = cuit || null

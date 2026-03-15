@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { Prisma } from '@prisma/client'
 
 // GET - Listar todos los CCIR
 export async function GET(request: NextRequest) {
@@ -8,7 +9,7 @@ export async function GET(request: NextRequest) {
     const estado = searchParams.get('estado')
     const search = searchParams.get('search')
     
-    const where: any = {}
+    const where: Prisma.CCIRWhereInput = {}
     
     if (estado && estado !== 'TODOS') {
       where.estado = estado
@@ -111,7 +112,7 @@ export async function PUT(request: NextRequest) {
     const body = await request.json()
     const { id, estado, marcarImpreso } = body
     
-    const updateData: any = {}
+    const updateData: Prisma.CCIRUpdateInput = {}
     
     if (estado) {
       updateData.estado = estado

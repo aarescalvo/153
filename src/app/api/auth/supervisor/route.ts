@@ -1,12 +1,50 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import bcrypt from 'bcryptjs'
+import { 
+  checkRateLimit, 
+  getClientIp, 
+  getRateLimitKey, 
+  resetRateLimit,
+  RATE_LIMIT_CONFIGS 
+} from '@/lib/rate-limiter'
+import { SupervisorAuthSchema, validateOrError } from '@/lib/validations'
 
 // POST - Validar credenciales de supervisor
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { pin, password, usuario } = body
+    
+    // Validar entrada con Zod
+    const validation = validateOrError(SupervisorAuthSchema, body)
+    if (!validation.success) {
+      return validation.error
+    }
+    
+    const { pin, password, usuario } = validation.data
+    
+    // Obtener IP para rate limiting
+    const clientIp = getClientIp(request)
+    const rateLimitKey = getRateLimitKey(clientIp, 'supervisor')
+    const rateLimitResult = checkRateLimit(rateLimitKey, RATE_LIMIT_CONFIGS.AUTH_SUPERVISOR)
+    
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: rateLimitResult.blocked 
+            ? `Demasiados intentos fallidos. Intente nuevamente en ${rateLimitResult.retryAfter} segundos.`
+            : 'Demasiadas solicitudes. Intente más tarde.',
+          retryAfter: rateLimitResult.retryAfter
+        },
+        { 
+          status: 429,
+          headers: rateLimitResult.retryAfter 
+            ? { 'Retry-After': String(rateLimitResult.retryAfter) }
+            : undefined
+        }
+      )
+    }
 
     let operador = null
 
@@ -34,7 +72,11 @@ export async function POST(request: NextRequest) {
         const validPassword = await bcrypt.compare(password, operador.password)
         if (!validPassword) {
           return NextResponse.json(
-            { success: false, error: 'Contraseña incorrecta' },
+            { 
+              success: false, 
+              error: 'Contraseña incorrecta',
+              attemptsRemaining: rateLimitResult.remaining - 1
+            },
             { status: 401 }
           )
         }
@@ -43,10 +85,17 @@ export async function POST(request: NextRequest) {
 
     if (!operador) {
       return NextResponse.json(
-        { success: false, error: 'Credenciales inválidas o no tiene permisos de supervisor' },
+        { 
+          success: false, 
+          error: 'Credenciales inválidas o no tiene permisos de supervisor',
+          attemptsRemaining: rateLimitResult.remaining - 1
+        },
         { status: 401 }
       )
     }
+    
+    // Validación exitosa - resetear rate limit
+    resetRateLimit(rateLimitKey)
 
     // Registrar auditoría
     await db.auditoria.create({
