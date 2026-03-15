@@ -1151,3 +1151,368 @@ Sistema de personalización de interfaz de usuario
 - **Componente personalización**: Drag & drop, tamaños, colores
 - **Preferencias por usuario**: Cada operador tiene su configuración
 - **UI personalizable**: Orden, tamaño, color, visibilidad
+  * `sidebarExpandido` - Estado del sidebar
+  * `gruposExpandidos` - Grupos expandidos (JSON)
+  * `tema` - Tema visual (light/dark/system)
+  * `tamanoFuente` - Tamaño de fuente
+  * `densidad` - Densidad de la UI
+
+#### 2. API de Preferencias UI
+- **Nuevo archivo**: `/src/app/api/preferencias-ui/route.ts`
+  * GET: Obtiene preferencias del usuario
+  * POST: Guarda preferencias (upsert)
+  * DELETE: Resetea a valores por defecto
+  * Conversión automática de objetos a JSON strings
+
+#### 3. Componente Editor de Menús
+- **Nuevo archivo**: `/src/components/menu-editor.tsx`
+  * **Drag & Drop**: Reordenar módulos arrastrando
+  * **Tres tamaños**: Chico, Mediano, Grande
+  * **Visibilidad**: Toggle para ocultar/mostrar módulos
+  * **Vista previa**: Preview en tiempo real de cambios
+  * **Persistencia**: Guardado automático en base de datos
+  * **Reset**: Opción de resetear a valores por defecto
+
+#### 4. Integración en Dashboard
+- **Botón "Configurar Menús"**:
+  * Visible solo para supervisores/administradores
+  * Abre modal de edición de menús
+- **Funcionalidades aplicadas**:
+  * Orden personalizado de módulos
+  * Tamaños variables de tarjetas
+  * Módulos ocultos no se renderizan
+- **Carga automática**:
+  * Las preferencias se cargan al iniciar sesión
+  * Se guardan automáticamente al cambiar
+
+#### Características del Editor:
+| Funcionalidad | Descripción |
+|--------------|-------------|
+| Mover | Arrastrar y soltar para reordenar |
+| Tamaño | Chico/Mediano/Grande |
+| Ocultar | Toggle de visibilidad |
+| Vista previa | Ver cambios en tiempo real |
+| Resetear | Volver a configuración por defecto |
+| Guardar | Persistir en base de datos |
+
+#### Verificaciones:
+- Lint: Sin errores ✓
+- Dev server: Funcionando correctamente ✓
+- Git push: Exitoso (commit 975d3a4)
+
+### Stage Summary:
+- **Editor de menús**: Drag & drop completo
+- **3 tamaños**: Chico, mediano, grande
+- **Visibilidad**: Ocultar/mostrar módulos
+- **Persistencia**: Configuración guardada en DB
+- **Permisos**: Solo supervisores/admins pueden editar
+- **UX**: Interfaz intuitiva con vista previa
+- **Versión**: v2.3.0 subida a GitHub
+
+---
+## Task ID: 92-b
+### Work Task
+Crear submódulo de Reportes Avanzados DENTRO del módulo de Reportes existente.
+
+### Work Log:
+- **Paquete instalado**: recharts@3.8.0
+  * Gráficos de barras, líneas, pie charts
+  * ResponsiveContainer para diseño responsive
+
+- **API creada**: `/src/app/api/reportes/avanzados/route.ts`
+  * GET con parámetros: tipo, fechaDesde, fechaHasta, especie, productor
+  * 6 tipos de reporte implementados:
+    - produccion: KG faenados, cabezas, rinde por día
+    - rinde-productor: Ranking de rindes por productor
+    - rinde-animal: Comparativa por tipo de animal (VA, NO, VQ, etc)
+    - stock-camaras: KG y piezas por cámara
+    - despachos: Clientes, KG vendidos, facturación
+    - curva-faena: Días con más/menos actividad
+  * Cálculo de KPIs con comparativa vs período anterior
+  * Tipado completo sin `any`
+
+- **Componente creado**: `/src/components/reportes-avanzados.tsx`
+  * Filtros: Período (desde/hasta), Especie, Productor
+  * Select de tipo de reporte (6 opciones)
+  * KPIs en cards con indicadores de tendencia
+  * Gráficos con Recharts:
+    - BarChart: Producción diaria, ranking, stock
+    - LineChart: Tendencia de rinde
+    - PieChart: Distribución por tipo animal/cámara
+  * Tabla con datos detallados (scroll overflow)
+  * Botones: Exportar Excel (CSV), Exportar PDF (print)
+  * Colores amber para tema consistente
+  * Responsive design con grid adaptativo
+
+- **Integración en page.tsx**:
+  * Agregado 'reportesAvanzados' al tipo Page
+  * Agregado case 'reportesAvanzados' en renderPage()
+  * Import del componente ReportesAvanzadosModule
+
+### Stage Summary:
+- **Recharts**: Instalado y funcionando correctamente
+- **API completa**: 6 tipos de reporte con KPIs
+- **Gráficos**: Barras, líneas y pie charts
+- **Exportación**: Excel (CSV) y PDF (print)
+- **Responsive**: Grid adaptativo para móviles
+- **Tipado**: Sin uso de `any`, interfaces completas
+- **Listo para integración**: Botón de menú será agregado por otro agente
+
+---
+## Task ID: 92-a
+### Work Task
+Crear Módulo Independiente de Trazabilidad para el sistema frigorífico.
+
+### Work Log:
+- **API de Trazabilidad creada** (`/src/app/api/trazabilidad/route.ts`):
+  * GET endpoint con parámetros de búsqueda: tropa, garron, codigoBarras, cliente, productor
+  * Retorna información completa del recorrido:
+    - Datos de ingreso (DTE, Guía, Productor, Usuario Faena)
+    - Pesaje camión (peso bruto, tara, neto, patentes, transportista)
+    - Pesaje individual de animales (código, tipo, raza, caravana, peso)
+    - Lista de faena asignada (número, fecha, estado, tropas)
+    - Asignación de garrones (garrón, animal, tipo, peso vivo, hora)
+    - Romaneo (peso medias reses, tipificación, rinde, dentición)
+    - Ubicación en cámara (código barras, lado, sigla, peso, cámara)
+    - Despacho (facturas, cliente, total, remito, medias despachadas)
+  * Timeline con 7 pasos: INGRESO → PESAJE_CAMION → PESAJE_IND → FAENA → ROMANEO → CAMARA → DESPACHO
+  * Tipado completo con TypeScript (sin any)
+
+- **Componente de Trazabilidad creado** (`/src/components/trazabilidad-module.tsx`):
+  * Campo de búsqueda con 5 opciones: Tropa, Garrón, Código Barras, Cliente, Productor
+  * Timeline visual con iconos y colores diferenciados por paso
+  * Estado visual: completado (icono coloreado) / pendiente (círculo vacío)
+  * Tabs de detalle con 8 secciones:
+    - Ingreso: DTE, Guía, Productor, Usuario Faena, Especie, Cantidad
+    - Pesaje: Peso Bruto, Tara, Neto, Patentes, Transportista
+    - Animales: Tabla con todos los animales pesados
+    - Faena: Número de lista, fecha, estado, tropas
+    - Garrones: Tabla de asignaciones con hora de ingreso
+    - Romaneo: Tabla con pesos de medias, rinde, tipificador
+    - Cámara: Ubicación de medias res con código de barras
+    - Despacho: Facturas asociadas y medias despachadas
+  * Botones: Exportar PDF, Enviar Email
+  * Colores amber como tema principal
+  * Diseño responsive con ScrollArea para tablas largas
+  * Badges de estado con colores según estado
+
+- **Integración en page.tsx**:
+  * Agregado 'trazabilidad' al tipo Page
+  * Agregado import de TrazabilidadModule
+  * Agregado case 'trazabilidad' en renderPage()
+
+### Archivos Creados/Modificados:
+1. `/src/app/api/trazabilidad/route.ts` (NUEVO)
+2. `/src/components/trazabilidad-module.tsx` (NUEVO)
+3. `/src/app/page.tsx` (MODIFICADO)
+
+### Stage Summary:
+- **Módulo de Trazabilidad completo**: API + Componente + Integración
+- **Búsqueda múltiple**: Por tropa, garrón, código barras, cliente, productor
+- **Timeline visual**: 7 pasos con iconos y colores diferenciados
+- **Detalles completos**: 8 tabs con información específica de cada etapa
+- **Tipado TypeScript**: Sin uso de `any`, interfaces completas
+- **Lint verificado**: Sin errores
+- **Dev server**: Funcionando correctamente
+
+
+---
+## Task ID: 92-c
+### Work Task
+Crear sistema de Backup Automático DENTRO del módulo de Configuración
+
+### Work Log:
+
+#### 1. Instalación de Dependencias
+- `bun add node-cron` - Scheduler de tareas basado en cron
+- `bun add -D @types/node-cron` - Tipos TypeScript
+
+#### 2. Modelos Prisma Creados
+- **ConfiguracionBackup**: Configuración de backups automáticos
+  * `enabled` - Habilitar/deshabilitar scheduler
+  * `frecuencia` - HOURLY, DAILY, WEEKLY, MONTHLY
+  * `hora`, `minuto` - Hora de ejecución
+  * `diaSemana`, `diaMes` - Para programación semanal/mensual
+  * `retencionDias` - Días a mantener backups
+  * `maxBackups` - Máximo de archivos a guardar
+  * `destino` - LOCAL, GOOGLE_DRIVE, FTP, S3
+  * `compresion`, `verificarIntegridad` - Opciones de backup
+  * `notificarExito`, `notificarFallo`, `emailNotificacion` - Notificaciones
+  * `ultimoBackup`, `proximoBackup`, `ultimoEstado` - Estado actual
+  * `totalBackups`, `espacioUsado` - Estadísticas
+
+- **HistorialBackup**: Historial de backups ejecutados
+  * `archivo`, `ruta`, `tamano` - Datos del archivo
+  * `estado`, `error`, `duracionMs` - Estado de ejecución
+  * `verificado`, `resultadoVerificacion` - Verificación de integridad
+  * `tipo` - AUTOMATICO o MANUAL
+
+- **Enums**: `FrecuenciaBackup`, `DestinoBackup`, `EstadoBackup`
+
+#### 3. Librería de Backup Scheduler
+- **Archivo**: `/src/lib/backup-scheduler.ts`
+- **Funciones implementadas**:
+  * `getBackupConfig()` - Obtener configuración actual
+  * `updateBackupConfig()` - Actualizar configuración
+  * `runBackup()` - Ejecutar backup manual o automático
+  * `cleanupOldBackups()` - Eliminar backups antiguos
+  * `verifyBackup()` - Verificar integridad de backup
+  * `startScheduler()` - Iniciar scheduler con cron
+  * `stopScheduler()` - Detener scheduler
+  * `restartScheduler()` - Reiniciar con nueva config
+  * `initializeScheduler()` - Inicializar al arrancar
+  * `calculateNextBackup()` - Calcular próxima ejecución
+  * `getSchedulerStatus()` - Estado actual del scheduler
+
+#### 4. API de Configuración de Backups
+- **Archivo**: `/src/app/api/admin/backups-config/route.ts`
+- **Endpoints**:
+  * GET: Obtener configuración actual con estado del scheduler
+  * POST: Guardar configuración (valida frecuencia, hora, destino)
+  * PATCH: Acciones especiales
+    - `runNow` - Ejecutar backup inmediato
+    - `cleanup` - Limpiar backups antiguos
+    - `verify` - Verificar integridad de archivo
+    - `restart` - Reiniciar scheduler
+
+#### 5. API de Backups Mejorada
+- **Archivo**: `/src/app/api/admin/backups/route.ts`
+- **Mejoras**:
+  * Integración con backup scheduler
+  * Registro en historial de backups
+  * Actualización de estadísticas
+  * Limpieza automática de backups antiguos
+  * Endpoint DELETE con actualización de espacio
+
+#### 6. Componente de Configuración de Backups
+- **Archivo**: `/src/components/config-backups.tsx`
+- **Funcionalidades UI**:
+  * Toggle habilitar/deshabilitar scheduler
+  * Select de frecuencia (hora, diario, semanal, mensual)
+  * Inputs de hora y minuto de ejecución
+  * Select de día de semana (si semanal) o día del mes (si mensual)
+  * Inputs de retención y máximo de backups
+  * Select de destino (local por ahora)
+  * Switches: compresión, verificar integridad
+  * Switches: notificar éxito/fallo, input de email
+  * Botones: Guardar, Ejecutar Ahora, Limpiar Antiguos
+  * Panel de estado: último backup, próximo backup, espacio usado
+  * Lista de backups con acciones (verificar, eliminar)
+
+#### 7. Integración en page.tsx
+- Importado componente `ConfigBackupsModule`
+- Agregado tipo `'configBackups'` al tipo `Page`
+- Agregado case `'configBackups'` en `renderPage()`
+- **NOTA**: NO se agregó botón de menú (se agregará desde otro agente)
+
+### Verificaciones:
+- Base de datos sincronizada con `npm run db:push` ✓
+- Lint: Sin errores ✓
+- Dev server: Funcionando correctamente ✓
+
+### Stage Summary:
+- **Sistema de backups automáticos completo**
+- **Scheduler basado en node-cron** con expresiones cron dinámicas
+- **Panel de configuración intuitivo** con todas las opciones
+- **Historial de backups** con estadísticas
+- **Limpieza automática** por antigüedad y cantidad
+- **Verificación de integridad** de backups
+- **Tipado TypeScript completo** sin uso de `any`
+- **Preparado para integración** en menú de configuración
+
+---
+## Task ID: 92
+### Work Task
+Implementar 3 mejoras principales: Trazabilidad, Reportes Avanzados y Backups Automáticos
+
+### Work Log:
+
+#### 1. Módulo de Trazabilidad (Independiente)
+- **Nuevo componente**: `/src/components/trazabilidad-module.tsx`
+  * Búsqueda por: Tropa, Garrón, Código de Barras, Cliente, Productor
+  * Timeline visual con 7 pasos: INGRESO → PESAJE → FAENA → ROMANEO → CÁMARA → DESPACHO
+  * 8 tabs de detalle: Ingreso, Pesaje, Animales, Faena, Garrones, Romaneo, Cámara, Despacho
+  * Botones de exportación PDF y envío por email
+  * Diseño responsive con colores amber
+
+- **Nueva API**: `/src/app/api/trazabilidad/route.ts`
+  * GET con parámetros: tropa, garron, codigoBarras, cliente, productor
+  * Retorna información completa del recorrido
+  * Datos: DTE, Guía, Pesajes, Garrones, Romaneo, Cámara, Facturas
+
+- **Menú**: Agregado en "Administración" como primer ítem
+
+#### 2. Reportes Avanzados (Submódulo de Reportes)
+- **Nueva dependencia**: `recharts@3.8.0` instalada
+
+- **Nuevo componente**: `/src/components/reportes-avanzados.tsx`
+  * Filtros: Período (desde/hasta), Especie, Productor
+  * KPIs: Total KG, Cabezas, Rinde promedio, Comparativa período anterior
+  * Gráficos:
+    - BarChart para producción diaria
+    - LineChart para tendencias
+    - PieChart para distribución
+  * Tabla detallada con scroll
+  * Exportar Excel (CSV) y PDF
+
+- **Nueva API**: `/src/app/api/reportes/avanzados/route.ts`
+  * 6 tipos de reporte:
+    - produccion: KG faenados, cabezas, rinde por día
+    - rinde-productor: Ranking de productores
+    - rinde-animal: Comparativa por tipo animal
+    - stock-camaras: KG y piezas por cámara
+    - despachos: Clientes, KG vendidos
+    - curva-faena: Actividad por día de semana
+
+- **Menú**: Agregado en "Reportes" como último ítem
+
+#### 3. Backups Automáticos (En Configuración)
+- **Nuevas dependencias**: `node-cron` y `@types/node-cron`
+
+- **Nueva librería**: `/src/lib/backup-scheduler.ts`
+  * Scheduler con node-cron
+  * Frecuencias: hora, diario, semanal, mensual
+  * Funciones: runBackup(), cleanupOldBackups(), verifyBackup()
+  * Tipos: BackupConfig, BackupResult, BackupStatus
+
+- **Nuevo modelo Prisma**:
+  * `ConfiguracionBackup`: Configuración completa del scheduler
+  * `HistorialBackup`: Historial de ejecuciones
+  * Enums: FrecuenciaBackup, DestinoBackup, EstadoBackup
+
+- **Nuevas APIs**:
+  * `/src/app/api/admin/backups-config/route.ts`: Configuración y acciones
+  * `/src/app/api/admin/backups/route.ts`: Mejorada con historial y estadísticas
+
+- **Nuevo componente**: `/src/components/config-backups.tsx`
+  * Toggle habilitar/deshabilitar backups automáticos
+  * Select de frecuencia (hora, diario, semanal, mensual)
+  * Configuración de hora de ejecución
+  * Retención por días y cantidad máxima
+  * Opciones de compresión y verificación
+  * Notificaciones por email
+  * Panel de estado: último backup, próximo, espacio usado
+  * Lista de backups con acciones
+
+- **Menú**: Agregado en "Configuración" como primer ítem
+
+#### 4. Integración en Navegación
+- NAV_GROUPS actualizado con los 3 nuevos items:
+  * Trazabilidad → Administración (posición 1)
+  * Reportes Avanzados → Reportes (última posición)
+  * Backups Automáticos → Configuración (posición 1)
+
+#### Verificaciones:
+- Lint: Sin errores ✓
+- Dev server: Funcionando correctamente ✓
+- Recharts instalado ✓
+- node-cron instalado ✓
+
+### Stage Summary:
+- **3 módulos nuevos** implementados y funcionando
+- **Trazabilidad**: Búsqueda completa con timeline visual
+- **Reportes Avanzados**: KPIs y gráficos con Recharts
+- **Backups Automáticos**: Scheduler programable con node-cron
+- **Dependencias**: recharts, node-cron instaladas
+- **Modelos Prisma**: ConfiguracionBackup, HistorialBackup
+- **Versión**: v2.4.0

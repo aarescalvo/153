@@ -4,13 +4,25 @@ import { exec } from 'child_process'
 import { promisify } from 'util'
 import * as fs from 'fs'
 import * as path from 'path'
+import {
+  runBackup,
+  verifyBackup,
+  cleanupOldBackups,
+  getBackupConfig,
+  calculateNextBackup,
+  getBackupDir
+} from '@/lib/backup-scheduler'
 
 const execAsync = promisify(exec)
 
-// GET - Listar backups disponibles
+// GET - Listar backups disponibles con información adicional
 export async function GET(request: NextRequest) {
   try {
-    const backupDir = '/home/z/my-project/backups' // En producción: C:\SolemarFrigorifico\backups
+    const { searchParams } = new URL(request.url)
+    const includeHistory = searchParams.get('history') === 'true'
+    const includeStats = searchParams.get('stats') === 'true'
+
+    const backupDir = getBackupDir()
     
     // Crear directorio si no existe
     if (!fs.existsSync(backupDir)) {
@@ -21,7 +33,7 @@ export async function GET(request: NextRequest) {
     const files = fs.readdirSync(backupDir)
     
     const backups = files
-      .filter(f => f.endsWith('.sql') || f.endsWith('.zip'))
+      .filter(f => f.endsWith('.sql') || f.endsWith('.zip') || f.endsWith('.gz'))
       .map(f => {
         const filePath = path.join(backupDir, f)
         const stats = fs.statSync(filePath)
@@ -32,23 +44,79 @@ export async function GET(request: NextRequest) {
           size: formatBytes(stats.size),
           sizeBytes: stats.size,
           date: stats.mtime.toISOString(),
-          type: f.endsWith('.zip') ? 'compressed' : 'sql'
+          type: f.endsWith('.zip') || f.endsWith('.gz') ? 'compressed' : 'sql'
         }
       })
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
 
-    // Obtener estadísticas
+    // Estadísticas
     const totalSize = backups.reduce((acc, b) => acc + b.sizeBytes, 0)
     
-    return NextResponse.json({
+    // Obtener configuración
+    const config = await getBackupConfig()
+    
+    // Preparar respuesta
+    const response: Record<string, unknown> = {
       success: true,
       data: {
         backups,
         total: backups.length,
         totalSize: formatBytes(totalSize),
-        backupDir
+        totalSizeBytes: totalSize,
+        backupDir,
+        config: config ? {
+          enabled: config.enabled,
+          frecuencia: config.frecuencia,
+          hora: config.hora,
+          minuto: config.minuto,
+          ultimoBackup: config.ultimoBackup?.toISOString() || null,
+          proximoBackup: config ? calculateNextBackup(config).toISOString() : null,
+          ultimoEstado: config.ultimoEstado,
+          ultimoError: config.ultimoError
+        } : null
       }
-    })
+    }
+
+    // Incluir historial de la base de datos
+    if (includeHistory) {
+      const historial = await db.historialBackup.findMany({
+        orderBy: { fecha: 'desc' },
+        take: 50
+      })
+      response.data = {
+        ...response.data as object,
+        historial
+      }
+    }
+
+    // Incluir estadísticas detalladas
+    if (includeStats) {
+      const statsData = {
+        totalBackups: backups.length,
+        totalSizeBytes: totalSize,
+        totalSizeMB: totalSize / (1024 * 1024),
+        oldestBackup: backups.length > 0 ? backups[backups.length - 1].date : null,
+        newestBackup: backups.length > 0 ? backups[0].date : null,
+        avgBackupSize: backups.length > 0 ? totalSize / backups.length : 0,
+        backupsHoy: backups.filter(b => {
+          const backupDate = new Date(b.date)
+          const today = new Date()
+          return backupDate.toDateString() === today.toDateString()
+        }).length,
+        backupsEstaSemana: backups.filter(b => {
+          const backupDate = new Date(b.date)
+          const weekAgo = new Date()
+          weekAgo.setDate(weekAgo.getDate() - 7)
+          return backupDate >= weekAgo
+        }).length
+      }
+      response.data = {
+        ...response.data as object,
+        stats: statsData
+      }
+    }
+    
+    return NextResponse.json(response)
 
   } catch (error) {
     console.error('Error listando backups:', error)
@@ -64,56 +132,34 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { includeFiles = false, compress = true } = body
+    const { includeFiles = false, compress = true, verify = false } = body
 
-    const backupDir = '/home/z/my-project/backups'
-    
-    // Crear directorio si no existe
-    if (!fs.existsSync(backupDir)) {
-      fs.mkdirSync(backupDir, { recursive: true })
+    // Ejecutar backup
+    const result = await runBackup('MANUAL')
+
+    if (!result.success) {
+      return NextResponse.json({
+        success: false,
+        error: result.error || 'Error al crear backup'
+      }, { status: 500 })
     }
 
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')
-    const date = timestamp[0]
-    const time = timestamp[1].split('-')[0]
-    
-    const backupName = `backup_${date}_${time}`
-    const sqlFile = path.join(backupDir, `${backupName}.sql`)
-
-    // En producción, esto ejecutaría pg_dump
-    // Por ahora, simulamos la creación del backup
-    
-    // Simular contenido del backup
-    const backupContent = `-- Backup de Base de Datos Solemar
--- Fecha: ${new Date().toISOString()}
--- Generado automáticamente por Sistema Frigorífico Solemar
-
--- En producción, aquí irían los comandos SQL de pg_dump
--- Este es un backup simulado para desarrollo
-`
-
-    fs.writeFileSync(sqlFile, backupContent)
-
-    let finalFile = sqlFile
-    
-    if (compress) {
-      // En producción, usaríamos compresión real
-      // Por ahora, simulamos renombrando
-      const zipFile = path.join(backupDir, `${backupName}.zip`)
-      fs.renameSync(sqlFile, zipFile)
-      finalFile = zipFile
+    // Verificar integridad si se solicitó
+    let verification = null
+    if (verify && result.file) {
+      verification = await verifyBackup(result.file)
     }
-
-    const stats = fs.statSync(finalFile)
 
     return NextResponse.json({
       success: true,
       message: 'Backup creado exitosamente',
       data: {
-        file: path.basename(finalFile),
-        path: finalFile,
-        size: formatBytes(stats.size),
-        date: new Date().toISOString()
+        file: result.file,
+        size: result.size,
+        sizeFormatted: result.size ? formatBytes(result.size * 1024 * 1024) : null,
+        duration: result.duration,
+        durationFormatted: result.duration ? `${result.duration}ms` : null,
+        verification
       }
     })
 
@@ -140,7 +186,7 @@ export async function DELETE(request: NextRequest) {
       }, { status: 400 })
     }
 
-    const backupDir = '/home/z/my-project/backups'
+    const backupDir = getBackupDir()
     const filePath = path.join(backupDir, fileName)
 
     // Verificar que el archivo existe y está en el directorio de backups
@@ -160,12 +206,35 @@ export async function DELETE(request: NextRequest) {
       }, { status: 403 })
     }
 
+    // Obtener tamaño antes de eliminar
+    const stats = fs.statSync(filePath)
+    const sizeMB = stats.size / (1024 * 1024)
+
     fs.unlinkSync(filePath)
+
+    // Eliminar del historial
+    await db.historialBackup.deleteMany({
+      where: { archivo: fileName }
+    })
+
+    // Actualizar espacio usado en configuración
+    const config = await getBackupConfig()
+    if (config) {
+      await db.configuracionBackup.update({
+        where: { id: config.id },
+        data: {
+          espacioUsado: Math.max(0, config.espacioUsado - sizeMB)
+        }
+      })
+    }
 
     return NextResponse.json({
       success: true,
       message: 'Backup eliminado exitosamente',
-      data: { file: fileName }
+      data: { 
+        file: fileName,
+        freedMB: sizeMB
+      }
     })
 
   } catch (error) {

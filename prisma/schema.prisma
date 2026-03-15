@@ -1689,3 +1689,105 @@ model PreferenciasUI {
   @@index([operadorId])
 }
 
+// ==================== CONFIGURACIÓN DE BACKUPS ====================
+
+model ConfiguracionBackup {
+  id                    String              @id @default(cuid())
+  
+  // Estado del scheduler
+  enabled               Boolean             @default(false)
+  
+  // Frecuencia de backup
+  frecuencia            FrecuenciaBackup    @default(DAILY)
+  hora                  Int                 @default(3)        // Hora de ejecución (0-23)
+  minuto                Int                 @default(0)        // Minuto de ejecución (0-59)
+  diaSemana             Int?                // 0-6 (domingo-sábado) para semanal
+  diaMes                Int?                // 1-31 para mensual
+  
+  // Retención
+  retencionDias         Int                 @default(30)       // Días a mantener backups
+  maxBackups            Int                 @default(10)       // Máximo de backups a guardar
+  
+  // Destino
+  destino               DestinoBackup       @default(LOCAL)
+  rutaDestino           String?             // Ruta personalizada para backups
+  // Para Google Drive / FTP (credenciales encriptadas)
+  credencialesDestino   String?
+  
+  // Opciones
+  compresion            Boolean             @default(true)
+  incluirArchivos       Boolean             @default(false)    // Incluir archivos del sistema
+  verificarIntegridad   Boolean             @default(true)
+  
+  // Notificaciones
+  notificarExito        Boolean             @default(false)
+  notificarFallo        Boolean             @default(true)
+  emailNotificacion     String?
+  
+  // Estado actual
+  ultimoBackup          DateTime?
+  proximoBackup         DateTime?
+  ultimoEstado          EstadoBackup        @default(PENDIENTE)
+  ultimoError           String?
+  
+  // Estadísticas
+  totalBackups          Int                 @default(0)
+  espacioUsado          Float               @default(0)        // En MB
+  
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+}
+
+enum FrecuenciaBackup {
+  HOURLY    // Cada hora
+  DAILY     // Diario
+  WEEKLY    // Semanal
+  MONTHLY   // Mensual
+}
+
+enum DestinoBackup {
+  LOCAL          // Directorio local
+  GOOGLE_DRIVE   // Google Drive
+  FTP            // Servidor FTP
+  S3             // Amazon S3 (futuro)
+}
+
+enum EstadoBackup {
+  PENDIENTE      // Sin ejecutar aún
+  EN_PROGRESO    // Ejecutando backup
+  COMPLETADO     // Backup exitoso
+  FALLIDO        // Backup fallido
+  VERIFICANDO    // Verificando integridad
+}
+
+// Historial de backups ejecutados
+model HistorialBackup {
+  id                    String        @id @default(cuid())
+  
+  // Datos del backup
+  archivo               String        // Nombre del archivo
+  ruta                  String        // Ruta completa
+  tamano                Float         // Tamaño en MB
+  comprimido            Boolean       @default(true)
+  
+  // Estado
+  estado                EstadoBackup  @default(PENDIENTE)
+  duracionMs            Int?          // Duración en milisegundos
+  error                 String?
+  
+  // Verificación
+  verificado            Boolean       @default(false)
+  fechaVerificacion     DateTime?
+  resultadoVerificacion String?
+  
+  // Metadata
+  tipo                  String        @default("AUTOMATICO") // AUTOMATICO, MANUAL
+  configuracionId       String?       // ID de la configuración usada
+  
+  fecha                 DateTime      @default(now())
+  createdAt             DateTime      @default(now())
+  
+  @@index([fecha])
+  @@index([estado])
+}
+

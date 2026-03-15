@@ -54,7 +54,10 @@ import { DashboardFinancieroModule } from '@/components/dashboard-financiero'
 import { AutorizacionesReportesModule } from '@/components/autorizaciones-reporte'
 import { IntegracionBalanzasModule } from '@/components/integracion-balanzas'
 import { AdminSistemaModule } from '@/components/configuracion/admin-sistema'
+import { ConfigBackupsModule } from '@/components/config-backups'
 import { MenuEditor } from '@/components/menu-editor'
+import { ReportesAvanzadosModule } from '@/components/reportes-avanzados'
+import { TrazabilidadModule } from '@/components/trazabilidad-module'
 
 // Lucide icons
 import { 
@@ -114,7 +117,7 @@ interface Stats {
   enCamara: number
 }
 
-type Page = 'dashboard' | 'pesajeCamiones' | 'pesajeIndividual' | 'movimientoHacienda' | 'listaFaena' | 'ingresoCajon' | 'romaneo' | 'vbRomaneo' | 'expedicion' | 'despachos' | 'cuarteo' | 'ingresoDespostada' | 'movimientosDespostada' | 'cortesDespostada' | 'empaque' | 'menudencias' | 'cueros' | 'grasa' | 'desperdicios' | 'fondoDigestor' | 'stock' | 'stocksCorrales' | 'planilla01' | 'rindesTropa' | 'busquedaFiltro' | 'reportesSenasa' | 'facturacion' | 'insumos' | 'stocksInsumos' | 'configRotulos' | 'configInsumos' | 'configUsuarios' | 'configCodigobarras' | 'configImpresoras' | 'configBalanzas' | 'configTerminales' | 'configOperadores' | 'configProductos' | 'configSubproductos' | 'configListadoInsumos' | 'configCondicionesEmbalaje' | 'configTiposProducto' | 'calidadRegistroUsuarios' | 'reportes' | 'configuracion' | 'dashboardFinanciero' | 'autorizacionesReporte' | 'integracionBalanzas' | 'adminSistema'
+type Page = 'dashboard' | 'pesajeCamiones' | 'pesajeIndividual' | 'movimientoHacienda' | 'listaFaena' | 'ingresoCajon' | 'romaneo' | 'vbRomaneo' | 'expedicion' | 'despachos' | 'cuarteo' | 'ingresoDespostada' | 'movimientosDespostada' | 'cortesDespostada' | 'empaque' | 'menudencias' | 'cueros' | 'grasa' | 'desperdicios' | 'fondoDigestor' | 'stock' | 'stocksCorrales' | 'planilla01' | 'rindesTropa' | 'busquedaFiltro' | 'reportesSenasa' | 'facturacion' | 'insumos' | 'stocksInsumos' | 'configRotulos' | 'configInsumos' | 'configUsuarios' | 'configCodigobarras' | 'configImpresoras' | 'configBalanzas' | 'configTerminales' | 'configOperadores' | 'configProductos' | 'configSubproductos' | 'configListadoInsumos' | 'configCondicionesEmbalaje' | 'configTiposProducto' | 'calidadRegistroUsuarios' | 'reportes' | 'reportesAvanzados' | 'configuracion' | 'dashboardFinanciero' | 'autorizacionesReporte' | 'integracionBalanzas' | 'adminSistema' | 'trazabilidad' | 'configBackups'
 
 // Navigation item
 interface NavItem {
@@ -207,6 +210,7 @@ const NAV_GROUPS: NavGroup[] = [
       { id: 'rindesTropa', label: 'Rindes por Tropa', icon: TrendingUp, permiso: 'puedeReportes' },
       { id: 'busquedaFiltro', label: 'Búsqueda por Filtro', icon: Search, permiso: 'puedeReportes' },
       { id: 'reportesSenasa', label: 'Reportes SENASA', icon: FileText, permiso: 'puedeReportes' },
+      { id: 'reportesAvanzados', label: 'Reportes Avanzados', icon: TrendingUp, permiso: 'puedeReportes' },
     ]
   },
   // 6. Administración
@@ -214,6 +218,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: 'Administración',
     icon: FileText,
     items: [
+      { id: 'trazabilidad', label: 'Trazabilidad', icon: Search, permiso: 'puedeReportes' },
       { id: 'dashboardFinanciero', label: 'Dashboard Financiero', icon: TrendingUp, permiso: 'puedeDashboardFinanciero' },
       { id: 'facturacion', label: 'Facturación', icon: FileText, permiso: 'puedeFacturacion' },
       { id: 'autorizacionesReporte', label: 'Autorizaciones Reportes', icon: Mail, permiso: 'puedeAutorizarReportes' },
@@ -227,6 +232,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: 'Configuración',
     icon: Settings,
     items: [
+      { id: 'configBackups', label: 'Backups Automáticos', icon: Database, permiso: 'puedeAdminSistema' },
       { id: 'configRotulos', label: 'Rótulos', icon: Tag, permiso: 'puedeConfiguracion' },
       { id: 'configInsumos', label: 'Insumos', icon: Package, permiso: 'puedeConfiguracion' },
       { id: 'configUsuarios', label: 'Usuarios', icon: Users, permiso: 'puedeConfiguracion' },
@@ -945,6 +951,12 @@ export default function FrigorificoApp() {
         return <IntegracionBalanzasModule operador={operador} />
       case 'adminSistema':
         return <AdminSistemaModule operador={operador} />
+      case 'trazabilidad':
+        return <TrazabilidadModule operador={operador} />
+      case 'reportesAvanzados':
+        return <ReportesAvanzadosModule operador={operador} />
+      case 'configBackups':
+        return <ConfigBackupsModule operador={operador} />
       default:
         return <PesajeCamionesModule operador={operador} onTropaCreada={fetchTropas} />
     }
