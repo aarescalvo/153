@@ -20,7 +20,10 @@ param(
     [string]$DbName = "solemar_frigorifico",
     [int]$AppPort = 3000,
     [int]$DbPort = 5432,
-    [string]$ServerIp = ""
+    [string]$ServerIp = "",
+    [string]$GithubRepo = "https://github.com/aarescalvo/153",
+    [string]$GithubBranch = "master",
+    [string]$GithubToken = ""
 )
 
 # Configurar codificacion
@@ -497,6 +500,161 @@ if (Test-Path $nssmPath) {
 }
 
 # ================================================================================
+# PASO 7: CREAR CONFIGURACIÓN Y SCRIPTS DE UTILIDAD
+# ================================================================================
+
+Write-Header "PASO 7: Creando Configuracion y Scripts de Utilidad"
+
+# Crear directorio de configuracion
+$configDir = "$InstallDir\config"
+if (-not (Test-Path $configDir)) {
+    New-Item -Path $configDir -ItemType Directory -Force | Out-Null
+}
+
+# Crear archivo de configuracion del sistema
+Write-Step "Creando archivo de configuracion del sistema..."
+
+$configContent = @"
+# ================================================================================
+# CONFIGURACION DEL SISTEMA FRIGORIFICO SOLEMAR
+# ================================================================================
+# 
+# Este archivo contiene toda la configuracion del sistema.
+# Modifique los valores segun sus necesidades.
+#
+# ================================================================================
+
+# ================================================================================
+# REPOSITORIO DE ACTUALIZACIONES
+# ================================================================================
+# Cambie esta URL cuando quiera usar un nuevo repositorio
+
+GITHUB_REPO_URL="$GithubRepo"
+GITHUB_BRANCH="$GithubBranch"
+GITHUB_TOKEN="$GithubToken"
+
+# ================================================================================
+# BASE DE DATOS POSTGRESQL
+# ================================================================================
+
+DB_HOST="localhost"
+DB_PORT="$DbPort"
+DB_NAME="$DbName"
+DB_USER="$DbUser"
+DB_PASSWORD="$DbPassword"
+
+# Conexión completa (no modificar)
+DATABASE_URL="postgresql://$DbUser`:$DbPassword@localhost:$DbPort/$DbName?schema=public"
+
+# ================================================================================
+# SERVIDOR DE APLICACION
+# ================================================================================
+
+APP_PORT="$AppPort"
+APP_HOST="0.0.0.0"
+NODE_ENV="production"
+
+# ================================================================================
+# RESPALDOS AUTOMATICOS
+# ================================================================================
+
+BACKUP_DIR="$InstallDir\backups"
+BACKUP_KEEP_COUNT="30"
+BACKUP_HOUR="02"
+BACKUP_MINUTE="00"
+
+# ================================================================================
+# EMAIL SMTP
+# ================================================================================
+
+SMTP_HOST="smtp.office365.com"
+SMTP_PORT="587"
+SMTP_USER=""
+SMTP_PASS=""
+SMTP_FROM_NAME="Sistema Frigorifico Solemar"
+SMTP_FROM_EMAIL=""
+
+# ================================================================================
+# NOTIFICACIONES
+# ================================================================================
+
+NOTIFY_UPDATE_AVAILABLE="true"
+NOTIFY_UPDATE_COMPLETED="true"
+ADMIN_EMAILS=""
+
+# ================================================================================
+# LOGS
+# ================================================================================
+
+LOG_LEVEL="info"
+LOG_KEEP_DAYS="90"
+
+# ================================================================================
+# SEGURIDAD
+# ================================================================================
+
+SESSION_EXPIRE_MINUTES="60"
+MAX_LOGIN_ATTEMPTS="5"
+LOCKOUT_DURATION_MINUTES="15"
+
+# ================================================================================
+# ACTUALIZACIONES
+# ================================================================================
+
+UPDATE_CHECK_INTERVAL_HOURS="24"
+AUTO_DOWNLOAD_UPDATES="false"
+AUTO_BACKUP_BEFORE_UPDATE="true"
+
+# ================================================================================
+# DATOS DE LA EMPRESA
+# ================================================================================
+
+EMPRESA_NOMBRE="Solemar Alimentaria"
+EMPRESA_DIRECCION=""
+EMPRESA_TELEFONO=""
+EMPRESA_EMAIL=""
+EMPRESA_CUIT=""
+EMPRESA_NUMERO_ESTABLECIMIENTO=""
+EMPRESA_MATRICULA=""
+"@
+
+Set-Content -Path "$configDir\sistema.conf" -Value $configContent -Encoding UTF8
+Write-Success "Archivo de configuracion creado"
+
+# Copiar scripts de utilidad desde el instalador
+Write-Step "Copiando scripts de utilidad..."
+
+$scriptsToCopy = @(
+    @{ Name = "actualizar-sistema.ps1"; Desc = "Actualizacion automatica" },
+    @{ Name = "cambiar-repositorio.ps1"; Desc = "Cambiar repositorio GitHub" },
+    @{ Name = "respaldar.ps1"; Desc = "Respaldo de base de datos" },
+    @{ Name = "diagnostico.ps1"; Desc = "Diagnostico del sistema" },
+    @{ Name = "info-sistema.bat"; Desc = "Informacion del sistema" }
+)
+
+foreach ($script in $scriptsToCopy) {
+    $sourceScript = "$scriptDir\$($script.Name)"
+    if (Test-Path $sourceScript) {
+        Copy-Item $sourceScript "$InstallDir\$($script.Name)" -Force
+        Write-Success "$($script.Desc): $($script.Name)"
+    } else {
+        Write-Info "Script no encontrado: $($script.Name)"
+    }
+}
+
+# Crear acceso directo en el escritorio
+Write-Step "Creando acceso directo en el escritorio..."
+
+$WshShell = New-Object -ComObject WScript.Shell
+$shortcutPath = "$([Environment]::GetFolderPath('Desktop'))\Solemar Frigorifico.lnk"
+$shortcut = $WshShell.CreateShortcut($shortcutPath)
+$shortcut.TargetPath = "http://localhost:$AppPort"
+$shortcut.Description = "Sistema Frigorifico Solemar"
+$shortcut.Save()
+
+Write-Success "Acceso directo creado en el escritorio"
+
+# ================================================================================
 # RESUMEN FINAL
 # ================================================================================
 
@@ -528,8 +686,16 @@ Write-Host ""
 Write-Host "  SCRIPTS UTILES:" -ForegroundColor White
 Write-Host "  ----------------" -ForegroundColor Gray
 Write-Host "  Iniciar:           $InstallDir\iniciar.bat" -ForegroundColor Gray
-Write-Host "  Respaldar:         $InstallDir\respaldar.bat" -ForegroundColor Gray
-Write-Host "  Actualizar:        $InstallDir\actualizar.bat" -ForegroundColor Gray
+Write-Host "  Respaldar:         $InstallDir\respaldar.ps1" -ForegroundColor Gray
+Write-Host "  Actualizar:        $InstallDir\actualizar-sistema.ps1" -ForegroundColor Gray
+Write-Host "  Diagnostico:       $InstallDir\diagnostico.ps1" -ForegroundColor Gray
+Write-Host "  Info Sistema:      $InstallDir\info-sistema.bat" -ForegroundColor Gray
+Write-Host ""
+Write-Host "  CONFIGURACION:" -ForegroundColor White
+Write-Host "  ----------------" -ForegroundColor Gray
+Write-Host "  Repositorio:       $GithubRepo" -ForegroundColor Gray
+Write-Host "  Branch:            $GithubBranch" -ForegroundColor Gray
+Write-Host "  Archivo config:    $InstallDir\config\sistema.conf" -ForegroundColor Gray
 Write-Host ""
 Write-Host "  IMPORTANTES:" -ForegroundColor Red
 Write-Host "  ----------------" -ForegroundColor Gray

@@ -686,3 +686,82 @@ Crear instalador automático completo y mejorar documentación
 - **Tiempo estimado**: 15-30 minutos de instalación completa
 - **Proximo paso**: Subir a GitHub
 
+---
+## Task ID: 86
+### Work Task
+Sistema de actualización configurable y scripts de utilidad adicionales
+
+### Work Log:
+- **Sistema de actualización robusto** (`actualizar-sistema.ps1`):
+  * Lee configuración desde `config/sistema.conf`
+  * Verifica actualizaciones en GitHub
+  * Detecta versión instalada vs disponible
+  * Crea backup automático antes de actualizar
+  * Descarga actualización desde repositorio configurado
+  * Detiene servicio durante actualización
+  * Preserva archivos importantes (.env, .commit, db/)
+  * Actualiza archivos excluyendo node_modules
+  * Detecta cambios en schema de base de datos
+  * Sincroniza base de datos si hay cambios
+  * Muestra resumen de cambios
+  * Guarda log de actualizaciones
+
+- **Script para cambiar repositorio** (`cambiar-repositorio.ps1`):
+  * Permite cambiar el repositorio de actualizaciones
+  * Valida que el repositorio exista
+  * Actualiza el archivo de configuración
+  * Guarda en log el cambio
+
+- **Archivo de configuración** (`config/sistema.conf`):
+  * Repositorio de GitHub configurable
+  * Token para repositorios privados
+  * Configuración de base de datos
+  * Configuración de backups
+  * Configuración de email SMTP
+  * Configuración de seguridad
+  * Datos de la empresa
+
+- **Scripts adicionales**:
+  * `respaldar.ps1` - Backup de base de datos con compresión
+  * `diagnostico.ps1` - Diagnóstico completo del sistema
+  * `info-sistema.bat` - Información rápida del sistema
+
+- **Instalador actualizado** (`install-auto.ps1`):
+  * Nuevo parámetro: `-GithubRepo` para especificar repositorio
+  * Nuevo parámetro: `-GithubBranch` para especificar branch
+  * Nuevo parámetro: `-GithubToken` para repositorios privados
+  * Paso 7 agregado: Crea configuración y copia scripts
+  * Crea acceso directo en el escritorio
+  * Muestra repositorio configurado en resumen
+
+### Scripts Disponibles Post-Instalación:
+
+| Script | Función |
+|--------|---------|
+| `iniciar.bat` | Iniciar la aplicación |
+| `actualizar-sistema.ps1` | Actualizar desde GitHub |
+| `cambiar-repositorio.ps1` | Cambiar repositorio de actualizaciones |
+| `respaldar.ps1` | Backup de base de datos |
+| `diagnostico.ps1` | Diagnóstico completo |
+| `info-sistema.bat` | Información del sistema |
+
+### Cómo Cambiar el Repositorio:
+
+```powershell
+# Ver repositorio actual
+type C:\SolemarFrigorifico\config\sistema.conf
+
+# Cambiar repositorio
+.\cambiar-repositorio.ps1 -Url "https://github.com/usuario/nuevo-repo"
+
+# Actualizar desde nuevo repositorio
+.\actualizar-sistema.ps1
+```
+
+### Stage Summary:
+- **Sistema de actualización**: Completo y configurable
+- **Repositorio editable**: Fácil cambio de fuente de actualizaciones
+- **Scripts de utilidad**: 6 scripts útiles incluidos
+- **Instalador mejorado**: Ahora configura repositorio automáticamente
+- **Listo para subir**: Commit y push a GitHub
+
